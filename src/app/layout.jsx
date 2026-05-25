@@ -1,1 +1,0 @@
-﻿export const metadata = { title: "Collabrix", description: "Team productivity workspace" };\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n

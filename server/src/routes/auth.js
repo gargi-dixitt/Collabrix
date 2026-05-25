@@ -1,0 +1,1 @@
+﻿import { Router } from "express";\nimport { login, register } from "../controllers/authController.js";\nconst router = Router();\nrouter.post("/login", login);\nrouter.post("/register", register);\nexport default router;

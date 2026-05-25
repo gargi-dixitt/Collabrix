@@ -1,1 +1,1 @@
-﻿node_modules\n.next\nout\n.env\n.DS_Store\n
+﻿node_modules\n.next\nout\n.env\n.DS_Store\nclient/node_modules\nclient/dist\nserver/node_modules\n

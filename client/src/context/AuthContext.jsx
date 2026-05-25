@@ -1,0 +1,1 @@
+﻿import { createContext, useContext, useState } from "react";\nconst AuthContext = createContext(null);\nexport function AuthProvider({ children }) { const [user, setUser] = useState(null); return <AuthContext.Provider value={{ user, setUser }}>{children}</AuthContext.Provider>; }\nexport function useAuth() { return useContext(AuthContext); }
