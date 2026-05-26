@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
@@ -19,6 +19,13 @@ const messageSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
+    reactions: [
+      {
+        emoji: { type: String, required: true },
+        users: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }],
+      }
+    ],
   },
   {
     timestamps: true,

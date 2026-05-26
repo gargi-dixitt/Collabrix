@@ -129,6 +129,11 @@ const initSockets = (server) => {
       socket.to(projectId).emit("receive-message", message);
     });
 
+    socket.on("message-reaction", ({ projectId, messageId, message }) => {
+      if (!projectId || !messageId) return;
+      socket.to(projectId).emit("receive-message-reaction", { messageId, message });
+    });
+
     // ─── Typing indicators ────────────────────────────────────────────
     socket.on("typing-start", ({ projectId, userName }) => {
       if (!projectId) return;

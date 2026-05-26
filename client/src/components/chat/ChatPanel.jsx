@@ -14,6 +14,7 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [activePickerMsgId, setActivePickerMsgId] = useState(null);
 
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -45,7 +46,7 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
     const tempMsg = {
       _id: `temp-${Date.now()}`,
       text: trimmed,
-      sender: { _id: user.id, name: user.name },
+      sender: { _id: user.id || user._id, name: user.name },
       createdAt: new Date().toISOString(),
       _temp: true,
     };
@@ -83,6 +84,72 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
       sendMessage();
     }
   };
+
+  // ─── Reactions ─────────────────────────────────────────────────────
+  const handleToggleReaction = async (messageId, emoji) => {
+    const userId = user.id || user._id;
+    const userName = user.name || "Someone";
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m._id !== messageId) return m;
+
+        let reactions = m.reactions ? JSON.parse(JSON.stringify(m.reactions)) : [];
+        const reactIndex = reactions.findIndex((r) => r.emoji === emoji);
+
+        if (reactIndex > -1) {
+          const usersList = reactions[reactIndex].users;
+          const userIndex = usersList.findIndex((u) => (u._id || u) === userId);
+
+          if (userIndex > -1) {
+            usersList.splice(userIndex, 1);
+            if (usersList.length === 0) {
+              reactions.splice(reactIndex, 1);
+            }
+          } else {
+            usersList.push({ _id: userId, name: userName });
+          }
+        } else {
+          reactions.push({
+            emoji,
+            users: [{ _id: userId, name: userName }],
+          });
+        }
+
+        return { ...m, reactions };
+      })
+    );
+
+    try {
+      const res = await api.put(`/messages/${messageId}/reaction`, { emoji });
+      // Replace with real updated message from server
+      setMessages((prev) =>
+        prev.map((m) => (m._id === messageId ? res.data : m))
+      );
+      // Broadcast via socket
+      socket.emit("message-reaction", {
+        projectId,
+        messageId,
+        message: res.data,
+      });
+    } catch (err) {
+      console.error("Failed to toggle reaction:", err.message);
+      fetchMessages();
+    }
+  };
+
+  // Click outside to close emoji picker
+  useEffect(() => {
+    if (!activePickerMsgId) return;
+    const handleDocumentClick = () => {
+      setActivePickerMsgId(null);
+    };
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [activePickerMsgId]);
 
   // ─── Typing indicators ─────────────────────────────────────────────
   const startTyping = () => {
@@ -123,6 +190,12 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
       });
     };
 
+    const onMessageReaction = ({ messageId, message }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === messageId ? message : m))
+      );
+    };
+
     const onPresenceStatus = ({ name, type }) => {
       if (name === user.name) return; // ignore self system messages
       setMessages((prev) => [
@@ -141,11 +214,13 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
     };
 
     socket.on("receive-message", onMessage);
+    socket.on("receive-message-reaction", onMessageReaction);
     socket.on("presence-status", onPresenceStatus);
     socket.on("connect", onConnect);
 
     return () => {
       socket.off("receive-message", onMessage);
+      socket.off("receive-message-reaction", onMessageReaction);
       socket.off("presence-status", onPresenceStatus);
       socket.off("connect", onConnect);
       stopTyping();
@@ -205,7 +280,8 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
         ) : null}
 
         {messages.map((msg, index) => {
-          const isMe = msg.sender?._id === user.id || msg.sender === user.id;
+          const userId = user.id || user._id;
+          const isMe = msg.sender?._id === userId || msg.sender === userId || (msg.sender && (msg.sender._id === userId || msg.sender === userId));
           const prevMsg = index > 0 ? messages[index - 1] : null;
 
           // Group messages from same sender within 3 minutes
@@ -227,7 +303,7 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
           return (
             <div
               key={msg._id}
-              className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${
+              className={`flex flex-col relative group ${isMe ? "items-end" : "items-start"} ${
                 isGrouped ? "-mt-1" : "mt-2.5"
               }`}
             >
@@ -236,26 +312,104 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
                   {msg.sender?.name || "Unknown"} · {formatTime(msg.createdAt)}
                 </span>
               )}
-              <div
-                className={`px-3.5 py-2 rounded-2xl text-xs max-w-[85%] break-words leading-relaxed ${
-                  msg._failed
-                    ? "bg-red-950/40 text-red-400 border border-red-900/40"
-                    : msg._temp
-                    ? "bg-zinc-800 text-zinc-400 border border-zinc-700 opacity-70"
-                    : isMe
-                    ? `bg-white text-black font-semibold rounded-tr-sm shadow-sm ${
-                        isGrouped ? "rounded-br-sm" : ""
-                      }`
-                    : `bg-zinc-900 text-zinc-200 border border-zinc-850 rounded-tl-sm ${
-                        isGrouped ? "rounded-bl-sm" : ""
-                      }`
-                }`}
-              >
-                {msg.text}
-                {msg._failed && (
-                  <span className="block text-[10px] mt-1 opacity-70">Failed to send</span>
+              
+              <div className={`flex items-center gap-2 max-w-[90%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                <div
+                  className={`px-3.5 py-2 rounded-2xl text-xs break-words leading-relaxed ${
+                    msg._failed
+                      ? "bg-red-950/40 text-red-400 border border-red-900/40"
+                      : msg._temp
+                      ? "bg-zinc-800 text-zinc-400 border border-zinc-700 opacity-70"
+                      : isMe
+                      ? `bg-white text-black font-semibold rounded-tr-sm shadow-sm ${
+                          isGrouped ? "rounded-br-sm" : ""
+                        }`
+                      : `bg-zinc-900 text-zinc-200 border border-zinc-850 rounded-tl-sm ${
+                          isGrouped ? "rounded-bl-sm" : ""
+                        }`
+                  }`}
+                >
+                  {msg.text}
+                  {msg._failed && (
+                    <span className="block text-[10px] mt-1 opacity-70">Failed to send</span>
+                  )}
+                </div>
+
+                {/* Reaction Picker Button */}
+                {!msg._temp && !msg._failed && (
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 relative flex-shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePickerMsgId(activePickerMsgId === msg._id ? null : msg._id);
+                      }}
+                      className="p-1 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-[11px] transition shadow"
+                      title="Add reaction"
+                    >
+                      ☺
+                    </button>
+                    
+                    {/* Popover */}
+                    {activePickerMsgId === msg._id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={`absolute bottom-full mb-1.5 z-20 flex gap-1 p-1 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl ${
+                          isMe ? "right-0" : "left-0"
+                        }`}
+                      >
+                        {["👍", "❤️", "🔥", "🚀", "👀"].map((emoji) => {
+                          const reactions = msg.reactions || [];
+                          const reactGroup = reactions.find((r) => r.emoji === emoji);
+                          const hasReacted = reactGroup?.users.some((u) => (u._id || u) === userId);
+                          return (
+                            <button
+                              key={emoji}
+                              onClick={() => {
+                                handleToggleReaction(msg._id, emoji);
+                                setActivePickerMsgId(null);
+                              }}
+                              className={`w-7 h-7 flex items-center justify-center rounded-lg text-sm hover:bg-zinc-800 transition ${
+                                hasReacted ? "bg-zinc-850 border border-zinc-750 font-bold scale-105" : ""
+                              }`}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
+
+              {/* Reactions Pill Badges */}
+              {msg.reactions && msg.reactions.length > 0 && (
+                <div className={`flex flex-wrap gap-1 mt-1 px-1 max-w-[85%] ${isMe ? "justify-end" : "justify-start"}`}>
+                  {msg.reactions.map((r) => {
+                    const hasReacted = r.users.some((u) => (u._id || u) === userId);
+                    const userNames = r.users.map((u) => u.name || "Someone").join(", ");
+                    return (
+                      <button
+                        key={r.emoji}
+                        onClick={() => handleToggleReaction(msg._id, r.emoji)}
+                        className={`group/pill relative flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition ${
+                          hasReacted
+                            ? "bg-zinc-800 text-zinc-200 border-zinc-650 hover:bg-zinc-750"
+                            : "bg-zinc-900/60 text-zinc-400 border-zinc-850 hover:bg-zinc-850 hover:text-zinc-200"
+                        }`}
+                      >
+                        <span>{r.emoji}</span>
+                        <span className="font-mono text-[9px]">{r.users.length}</span>
+                        
+                        {/* Tooltip on hover */}
+                        <span className="absolute bottom-full mb-1.5 hidden group-hover/pill:block bg-zinc-950 border border-zinc-800 text-zinc-300 px-2 py-1 rounded text-[9px] font-sans whitespace-nowrap z-30 shadow-lg shadow-black/80">
+                          {userNames}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
