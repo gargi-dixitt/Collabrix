@@ -258,36 +258,38 @@ const Project = () => {
         </div>
 
         {/* AI task generation */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+        <div className="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-6 mb-8">
           <h2 className="text-base font-semibold mb-1 text-zinc-300">Generate Tasks with AI</h2>
-          <p className="text-zinc-600 text-xs mb-4">Describe your project and AI will suggest tasks to add.</p>
+          <p className="text-zinc-500 text-xs mb-4">Describe your project and AI will suggest tasks to add.</p>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="e.g. Build a realtime chat app with auth and socket.io"
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && generateAiTasks()}
-              className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none text-sm focus:border-zinc-600 transition"
+              className="flex-1 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none text-sm focus:border-zinc-700 transition text-white"
             />
             <button
               onClick={generateAiTasks}
               disabled={aiLoading || !aiPrompt.trim()}
-              className="bg-white text-black px-6 py-2 rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50 whitespace-nowrap"
+              className="bg-white text-black px-6 py-3 sm:py-0 rounded-xl text-sm font-bold hover:bg-zinc-200 transition disabled:opacity-50 whitespace-nowrap"
             >
-              {aiLoading ? "Generating..." : "Generate"}
+              {aiLoading ? "Generating..." : "Generate Tasks"}
             </button>
           </div>
 
           {aiFallback && (
-            <p className="text-yellow-500 text-xs mt-3">
-              ⚠ AI is currently unavailable — showing suggested tasks based on your prompt instead.
+            <p className="text-yellow-500 text-xs mt-3 flex items-center gap-1.5 bg-yellow-950/30 border border-yellow-900/30 p-2.5 rounded-lg max-w-xl">
+              <span>⚠</span> AI is currently offline. Loaded customized offline tasks based on prompt instead.
             </p>
           )}
 
           {aiError && (
-            <p className="text-red-400 text-xs mt-3">{aiError}</p>
+            <p className="text-red-400 text-xs mt-3 flex items-center gap-1.5 bg-red-950/30 border border-red-900/30 p-2.5 rounded-lg max-w-xl">
+              <span>⚠</span> {aiError}
+            </p>
           )}
         </div>
 
