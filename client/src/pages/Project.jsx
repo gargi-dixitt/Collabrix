@@ -55,14 +55,102 @@ const Project = () => {
     }
   };
 
+  const updateTaskStatus = async (taskId, status) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.put(
+        `/tasks/${taskId}`,
+        {
+          status,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      fetchTasks();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const todoTasks = tasks.filter(
+    (task) => task.status === "todo"
+  );
+
+  const inProgressTasks = tasks.filter(
+    (task) => task.status === "in-progress"
+  );
+
+  const doneTasks = tasks.filter(
+    (task) => task.status === "done"
+  );
+
   useEffect(() => {
     fetchTasks();
   }, []);
 
+  const renderTaskCard = (task) => (
+    <div
+      key={task._id}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+    >
+      <h3 className="text-xl font-semibold">
+        {task.title}
+      </h3>
+
+      <p className="text-zinc-400 mt-3">
+        {task.description}
+      </p>
+
+      <div className="flex items-center justify-between mt-5">
+        <span className="text-sm text-zinc-500">
+          {task.priority}
+        </span>
+
+        <span className="text-sm text-zinc-500">
+          {task.status}
+        </span>
+      </div>
+
+      <div className="flex gap-2 mt-5">
+        <button
+          onClick={() =>
+            updateTaskStatus(task._id, "todo")
+          }
+          className="bg-zinc-800 px-3 py-2 rounded-lg text-sm"
+        >
+          Todo
+        </button>
+
+        <button
+          onClick={() =>
+            updateTaskStatus(task._id, "in-progress")
+          }
+          className="bg-blue-600 px-3 py-2 rounded-lg text-sm"
+        >
+          Progress
+        </button>
+
+        <button
+          onClick={() =>
+            updateTaskStatus(task._id, "done")
+          }
+          className="bg-green-600 px-3 py-2 rounded-lg text-sm"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-black text-white p-10">
       <h1 className="text-5xl font-bold mb-10">
-        Project Tasks
+        Project Board
       </h1>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10">
@@ -91,31 +179,36 @@ const Project = () => {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5">
-        {tasks.map((task) => (
-          <div
-            key={task._id}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
-          >
-            <h2 className="text-2xl font-semibold">
-              {task.title}
-            </h2>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
+          <h2 className="text-2xl font-bold mb-5">
+            Todo
+          </h2>
 
-            <p className="text-zinc-400 mt-3">
-              {task.description}
-            </p>
-
-            <div className="flex items-center justify-between mt-5">
-              <span className="text-sm text-zinc-500">
-                {task.priority}
-              </span>
-
-              <span className="text-sm text-zinc-500">
-                {task.status}
-              </span>
-            </div>
+          <div className="flex flex-col gap-4">
+            {todoTasks.map(renderTaskCard)}
           </div>
-        ))}
+        </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
+          <h2 className="text-2xl font-bold mb-5">
+            In Progress
+          </h2>
+
+          <div className="flex flex-col gap-4">
+            {inProgressTasks.map(renderTaskCard)}
+          </div>
+        </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
+          <h2 className="text-2xl font-bold mb-5">
+            Done
+          </h2>
+
+          <div className="flex flex-col gap-4">
+            {doneTasks.map(renderTaskCard)}
+          </div>
+        </div>
       </div>
     </div>
   );
