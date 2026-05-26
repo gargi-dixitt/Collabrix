@@ -1,43 +1,37 @@
-﻿import Project from "../models/Project.js";
+import Project from "../models/Project.js";
 
-export const createProject = async (req, res) => {
+export const createProject = async (req, res, next) => {
   try {
     const { name, description, workspaceId } = req.body;
 
-    if (!name || !workspaceId) {
-      return res.status(400).json({
-        message: "Name and workspaceId are required",
-      });
+    if (!name?.trim() || !workspaceId) {
+      return res.status(400).json({ success: false, message: "Name and workspaceId are required" });
     }
 
     const project = await Project.create({
-      name,
-      description,
+      name: name.trim(),
+      description: description?.trim(),
       workspace: workspaceId,
       createdBy: req.user._id,
       members: [req.user._id],
     });
 
     res.status(201).json(project);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const getProjects = async (req, res) => {
+export const getProjects = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
 
-    const projects = await Project.find({
-      workspace: workspaceId,
-    }).sort({ createdAt: -1 });
+    const projects = await Project.find({ workspace: workspaceId })
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json(projects);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+  } catch (err) {
+    next(err);
   }
 };

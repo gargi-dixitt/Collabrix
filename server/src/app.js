@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 
@@ -9,30 +9,39 @@ import taskRoutes from "./routes/tasks.js";
 import messageRoutes from "./routes/messages.js";
 import aiRoutes from "./routes/ai.js";
 
+import { errorHandler } from "./middleware/errorHandler.js";
+
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || "*",
+  credentials: true,
+}));
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
-app.use(morgan("dev"));
+// Only log requests in dev — keeps test output clean
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("dev"));
+}
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "Collabrix API running",
-  });
+app.get("/", (_req, res) => {
+  res.json({ message: "Collabrix API running", version: "1.0" });
 });
 
 app.use("/api/auth", authRoutes);
-
 app.use("/api/workspaces", workspaceRoutes);
-
 app.use("/api/projects", projectRoutes);
-
 app.use("/api/tasks", taskRoutes);
-
 app.use("/api/messages", messageRoutes);
-
 app.use("/api/ai", aiRoutes);
+
+// 404 handler for any unmatched routes
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+// Must be last — catches errors thrown by controllers
+app.use(errorHandler);
 
 export default app;

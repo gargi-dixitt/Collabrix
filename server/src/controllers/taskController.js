@@ -1,74 +1,64 @@
-﻿import Task from "../models/Task.js";
+import Task from "../models/Task.js";
 
-export const createTask = async (req, res) => {
+export const createTask = async (req, res, next) => {
   try {
-    const {
-      title,
-      description,
-      project,
-      workspace,
-      priority,
-    } = req.body;
+    const { title, description, project, workspace, priority } = req.body;
 
-    if (!title || !project) {
-      return res.status(400).json({
-        message: "Missing required fields",
-      });
+    if (!title?.trim() || !project) {
+      return res.status(400).json({ success: false, message: "Title and project are required" });
     }
 
     const task = await Task.create({
-      title,
-      description,
+      title: title.trim(),
+      description: description?.trim(),
       project,
       workspace,
-      priority,
+      priority: priority || "medium",
       createdBy: req.user._id,
     });
 
     res.status(201).json(task);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const getTasks = async (req, res) => {
+export const getTasks = async (req, res, next) => {
   try {
     const { projectId } = req.params;
 
-    const tasks = await Task.find({
-      project: projectId,
-    }).sort({ createdAt: -1 });
+    const tasks = await Task.find({ project: projectId })
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json(tasks);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const updateTaskStatus = async (req, res) => {
+export const updateTaskStatus = async (req, res, next) => {
   try {
     const { taskId } = req.params;
-
     const { status } = req.body;
 
-    const updatedTask = await Task.findByIdAndUpdate(
+    const validStatuses = ["todo", "in-progress", "done"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status value" });
+    }
+
+    const updated = await Task.findByIdAndUpdate(
       taskId,
-      {
-        status,
-      },
-      {
-        new: true,
-      }
+      { status },
+      { new: true, runValidators: true }
     );
 
-    res.status(200).json(updatedTask);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
   }
 };

@@ -1,11 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-} from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 import api from "../lib/axios";
 import socket from "../socket";
@@ -26,80 +22,127 @@ const Project = () => {
   const [tasks, setTasks] = useState([]);
   const [activities, setActivities] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
-  // AI task generation state
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [aiFallback, setAiFallback] = useState(false);
 
+  // Dragging state for visual feedback
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
+
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  const fetchTasks = async () => {
+  // ─── Data fetching ────────────────────────────────────────────────────
+  const fetchTasks = useCallback(async () => {
     try {
       const res = await api.get(`/tasks/${id}`);
       setTasks(res.data);
     } catch (err) {
       console.error("Failed to load tasks:", err.message);
     }
-  };
+  }, [id]);
 
+  // ─── Task creation ────────────────────────────────────────────────────
   const createTask = async () => {
     if (!title.trim()) return;
 
+    const trimmedTitle = title.trim();
+    const trimmedDesc = description.trim();
+
+    // Optimistic UI — add a fake task immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTask = {
+      _id: tempId,
+      title: trimmedTitle,
+      description: trimmedDesc,
+      status: "todo",
+      priority: "medium",
+      createdAt: new Date().toISOString(),
+    };
+
+    setTasks((prev) => [optimisticTask, ...prev]);
+    setTitle("");
+    setDescription("");
+    setCreateError("");
     setCreating(true);
+
     try {
-      await api.post("/tasks", {
-        title: title.trim(),
-        description: description.trim(),
+      const res = await api.post("/tasks", {
+        title: trimmedTitle,
+        description: trimmedDesc,
         project: id,
         priority: "medium",
       });
 
-      socket.emit("task-updated", {
-        projectId: id,
-        message: `${user.name} created a task`,
-      });
+      // Replace the optimistic task with the real one
+      setTasks((prev) => prev.map((t) => (t._id === tempId ? res.data : t)));
 
-      setTitle("");
-      setDescription("");
-      fetchTasks();
+      socket.emit("task-created", {
+        projectId: id,
+        task: res.data,
+        actorName: user.name,
+      });
     } catch (err) {
+      // Roll back the optimistic task
+      setTasks((prev) => prev.filter((t) => t._id !== tempId));
+      setCreateError("Failed to create task. Try again.");
       console.error("Failed to create task:", err.message);
     } finally {
       setCreating(false);
     }
   };
 
-  const updateTaskStatus = async (taskId, status) => {
+  // ─── Task status update ───────────────────────────────────────────────
+  const updateTaskStatus = async (taskId, newStatus, taskTitle) => {
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
+    );
+
     try {
-      await api.put(`/tasks/${taskId}`, { status });
+      await api.put(`/tasks/${taskId}`, { status: newStatus });
 
-      socket.emit("task-updated", {
+      const eventName = newStatus === "done" ? "task-completed" : "task-moved";
+      socket.emit(eventName, {
         projectId: id,
-        message: `${user.name} moved a task to ${status}`,
+        taskId,
+        newStatus,
+        actorName: user.name,
+        taskTitle,
       });
-
-      fetchTasks();
     } catch (err) {
       console.error("Failed to update task status:", err.message);
+      // Refetch to get back to real state
+      fetchTasks();
     }
   };
 
+  const handleDragStart = (initial) => {
+    setDraggingTaskId(initial.draggableId);
+  };
+
   const handleDragEnd = async (result) => {
+    setDraggingTaskId(null);
+
     if (!result.destination) return;
     if (result.destination.droppableId === result.source.droppableId) return;
 
     const taskId = result.draggableId;
     const newStatus = result.destination.droppableId;
-    await updateTaskStatus(taskId, newStatus);
+    const task = tasks.find((t) => t._id === taskId);
+
+    await updateTaskStatus(taskId, newStatus, task?.title);
   };
 
-  // Generate tasks using AI, then let user choose which ones to add
+  // ─── AI generation ────────────────────────────────────────────────────
   const generateAiTasks = async () => {
     if (!aiPrompt.trim()) return;
 
@@ -114,26 +157,37 @@ const Project = () => {
         setAiFallback(true);
       }
 
-      // Create all generated tasks in the project
+      // Create all the tasks — do them sequentially to avoid rate limiting
+      const created = [];
       for (const task of res.data.result) {
-        await api.post("/tasks", {
-          title: task.title,
-          description: task.description,
-          project: id,
-          priority: "medium",
-        });
+        try {
+          const r = await api.post("/tasks", {
+            title: task.title,
+            description: task.description,
+            project: id,
+            priority: "medium",
+          });
+          created.push(r.data);
+        } catch (e) {
+          console.warn("Skipped one AI task due to error:", e.message);
+        }
       }
 
-      socket.emit("task-updated", {
+      // Add them all to local state at once
+      if (created.length > 0) {
+        setTasks((prev) => [...created, ...prev]);
+      }
+
+      socket.emit("tasks-ai-generated", {
         projectId: id,
-        message: `${user.name} generated tasks with AI`,
+        count: created.length,
+        actorName: user.name,
       });
 
       setAiPrompt("");
-      fetchTasks();
     } catch (err) {
       console.error("AI task generation failed:", err.message);
-      setAiError("AI generation failed. Try again.");
+      setAiError("AI generation failed. Try again in a moment.");
     } finally {
       setAiLoading(false);
     }
@@ -145,76 +199,149 @@ const Project = () => {
     done: tasks.filter((t) => t.status === "done"),
   };
 
+  // ─── Socket setup ─────────────────────────────────────────────────────
   useEffect(() => {
-    fetchTasks();
+    fetchTasks().then(() => setLoading(false));
 
-    // Connect the socket when entering a project room
     if (!socket.connected) {
       socket.connect();
     }
 
     socket.emit("join-project", { projectId: id, user });
 
-    socket.on("receive-task-update", () => {
-      fetchTasks();
-    });
+    const onConnect = () => setSocketConnected(true);
+    const onDisconnect = () => setSocketConnected(false);
 
-    socket.on("online-users", (users) => {
-      setOnlineUsers(users);
-    });
+    // When someone else creates a task
+    const onTaskCreated = ({ task }) => {
+      if (!task) return;
+      setTasks((prev) => {
+        const exists = prev.some((t) => t._id === task._id);
+        return exists ? prev : [task, ...prev];
+      });
+    };
 
-    socket.on("activity", (activity) => {
-      setActivities((prev) => [activity, ...prev]);
-    });
+    // When someone else moves a task
+    const onTaskMoved = ({ taskId, newStatus }) => {
+      if (!taskId || !newStatus) return;
+      setTasks((prev) =>
+        prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
+      );
+    };
+
+    // Bulk refetch (e.g. after AI generation from another user)
+    const onBulkUpdate = () => fetchTasks();
+
+    // Legacy event support
+    const onLegacyUpdate = () => fetchTasks();
+
+    const onOnlineUsers = (users) => setOnlineUsers(users);
+
+    const onActivity = (activity) => {
+      setActivities((prev) => {
+        // Deduplicate by timestamp+message
+        const key = activity.timestamp + activity.message;
+        const exists = prev.some(
+          (a) => a.timestamp + a.message === key
+        );
+        return exists ? prev : [activity, ...prev].slice(0, 50);
+      });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("task:created", onTaskCreated);
+    socket.on("task:moved", onTaskMoved);
+    socket.on("task:bulk-update", onBulkUpdate);
+    socket.on("receive-task-update", onLegacyUpdate); // legacy
+    socket.on("online-users", onOnlineUsers);
+    socket.on("activity:new", onActivity);
+
+    if (socket.connected) setSocketConnected(true);
 
     return () => {
-      socket.off("receive-task-update");
-      socket.off("online-users");
-      socket.off("activity");
+      socket.emit("leave-project", { projectId: id });
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("task:created", onTaskCreated);
+      socket.off("task:moved", onTaskMoved);
+      socket.off("task:bulk-update", onBulkUpdate);
+      socket.off("receive-task-update", onLegacyUpdate);
+      socket.off("online-users", onOnlineUsers);
+      socket.off("activity:new", onActivity);
       socket.disconnect();
     };
-  }, []);
+  }, [id]);
 
+  // ─── Render helpers ───────────────────────────────────────────────────
+  const priorityStyles = {
+    high: "bg-red-950/30 text-red-400 border border-red-900/30",
+    medium: "bg-amber-950/30 text-amber-400 border border-amber-900/30",
+    low: "bg-zinc-800/30 text-zinc-400 border border-zinc-700/30",
+  };
 
   const renderColumn = (columnId, columnLabel, columnTasks) => (
     <Droppable droppableId={columnId} key={columnId}>
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
-          className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-5 min-h-[450px] flex flex-col transition hover:border-zinc-800"
+          className={`bg-zinc-950/80 border rounded-3xl p-5 min-h-[450px] flex flex-col transition ${
+            snapshot.isDraggingOver
+              ? "border-zinc-600 bg-zinc-900/40"
+              : "border-zinc-900 hover:border-zinc-800"
+          }`}
           ref={provided.innerRef}
           {...provided.droppableProps}
         >
           <div className="flex justify-between items-center mb-4 border-b border-zinc-900 pb-3">
-            <h2 className="text-sm font-extrabold text-zinc-400 uppercase tracking-wider">{columnLabel}</h2>
-            <span className="bg-zinc-905 border border-zinc-800 text-zinc-400 font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+            <h2 className="text-sm font-extrabold text-zinc-400 uppercase tracking-wider">
+              {columnLabel}
+            </h2>
+            <span className="bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
               {columnTasks.length}
             </span>
           </div>
 
           <div className="flex flex-col gap-3 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin">
+            {columnTasks.length === 0 && !snapshot.isDraggingOver && (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-zinc-700 text-xs italic">Drop tasks here</p>
+              </div>
+            )}
+
             {columnTasks.map((task, index) => (
               <Draggable key={task._id} draggableId={task._id} index={index}>
-                {(provided) => (
+                {(provided, snapshot) => (
                   <div
-                    className="bg-zinc-900 border border-zinc-850 hover:border-zinc-700 rounded-2xl p-4 transition group cursor-grab active:cursor-grabbing shadow-sm"
+                    className={`bg-zinc-900 border rounded-2xl p-4 transition group cursor-grab active:cursor-grabbing shadow-sm ${
+                      snapshot.isDragging
+                        ? "border-zinc-600 shadow-lg shadow-black/50 rotate-1 scale-105"
+                        : draggingTaskId && draggingTaskId !== task._id
+                        ? "border-zinc-850 opacity-60"
+                        : "border-zinc-850 hover:border-zinc-700"
+                    }`}
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                   >
-                    <h3 className="font-bold text-sm text-zinc-200 group-hover:text-white transition tracking-tight">{task.title}</h3>
+                    <h3 className="font-bold text-sm text-zinc-200 group-hover:text-white transition tracking-tight">
+                      {task.title}
+                    </h3>
                     {task.description && (
-                      <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
+                      <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">
+                        {task.description}
+                      </p>
                     )}
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-900">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                        task.priority === "high"
-                          ? "bg-red-950/30 text-red-400 border border-red-900/30"
-                          : task.priority === "low"
-                          ? "bg-zinc-800/30 text-zinc-400 border border-zinc-700/30"
-                          : "bg-amber-950/30 text-amber-400 border border-amber-900/30"
-                      }`}>
+                      <span
+                        className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                          priorityStyles[task.priority] || priorityStyles.medium
+                        }`}
+                      >
                         {task.priority}
                       </span>
+                      {task._id.startsWith("temp-") && (
+                        <span className="text-[10px] text-zinc-600 italic">saving...</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -233,13 +360,33 @@ const Project = () => {
       <Sidebar />
 
       <div className="flex-1 p-8 overflow-y-auto">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8 border-b border-zinc-900 pb-5">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Project Board</h1>
-            <p className="text-zinc-500 text-sm mt-1">Plan sprints, create tasks manually or generate with Gemini AI.</p>
+            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+              Project Board
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1">
+              Plan sprints, create tasks manually or generate with Gemini AI.
+            </p>
           </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-full px-4.5 py-1.5 text-xs text-zinc-400 font-mono">
-            Room ID: {id.slice(-6)}
+
+          <div className="flex items-center gap-3">
+            {/* Socket status dot */}
+            <div
+              className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-500"
+              title={socketConnected ? "Realtime connected" : "Connecting..."}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  socketConnected ? "bg-emerald-400 animate-pulse" : "bg-yellow-500"
+                }`}
+              />
+              {socketConnected ? "live" : "connecting"}
+            </div>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-full px-4 py-1.5 text-xs text-zinc-400 font-mono">
+              Room: {id.slice(-6)}
+            </div>
           </div>
         </div>
 
@@ -252,6 +399,7 @@ const Project = () => {
               placeholder="Task title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createTask()}
               className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none text-sm focus:border-zinc-700 transition text-white"
             />
             <textarea
@@ -260,6 +408,9 @@ const Project = () => {
               onChange={(e) => setDescription(e.target.value)}
               className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none h-20 text-sm resize-none focus:border-zinc-700 transition text-white"
             />
+            {createError && (
+              <p className="text-red-400 text-xs">{createError}</p>
+            )}
             <button
               onClick={createTask}
               disabled={creating || !title.trim()}
@@ -273,7 +424,9 @@ const Project = () => {
         {/* AI task generation */}
         <div className="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-6 mb-8">
           <h2 className="text-base font-semibold mb-1 text-zinc-300">Generate Tasks with AI</h2>
-          <p className="text-zinc-500 text-xs mb-4">Describe your project and AI will suggest tasks to add.</p>
+          <p className="text-zinc-500 text-xs mb-4">
+            Describe your project and Gemini will suggest tasks to add.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <input
@@ -289,13 +442,20 @@ const Project = () => {
               disabled={aiLoading || !aiPrompt.trim()}
               className="bg-white text-black px-6 py-3 sm:py-0 rounded-xl text-sm font-bold hover:bg-zinc-200 transition disabled:opacity-50 whitespace-nowrap"
             >
-              {aiLoading ? "Generating..." : "Generate Tasks"}
+              {aiLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  Generating...
+                </span>
+              ) : (
+                "✨ Generate Tasks"
+              )}
             </button>
           </div>
 
           {aiFallback && (
             <p className="text-yellow-500 text-xs mt-3 flex items-center gap-1.5 bg-yellow-950/30 border border-yellow-900/30 p-2.5 rounded-lg max-w-xl">
-              <span>⚠</span> AI is currently offline. Loaded customized offline tasks based on prompt instead.
+              <span>⚠</span> AI is busy right now. Loaded smart offline tasks based on your prompt instead.
             </p>
           )}
 
@@ -306,25 +466,29 @@ const Project = () => {
           )}
         </div>
 
-        {/* Kanban board + panels */}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid xl:grid-cols-5 gap-5">
-            {COLUMNS.map(({ id: colId, label }) =>
-              renderColumn(colId, label, groupedTasks[colId])
-            )}
-
-            <div className="h-[70vh]">
-              <ChatPanel projectId={id} />
-            </div>
-
-            <div className="h-[70vh]">
-              <ActivityPanel
-                activities={activities}
-                onlineUsers={onlineUsers}
-              />
-            </div>
+        {/* Kanban + panels */}
+        {loading ? (
+          <div className="flex items-center gap-3 text-zinc-500 py-10">
+            <span className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
+            <span>Loading board...</span>
           </div>
-        </DragDropContext>
+        ) : (
+          <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="grid xl:grid-cols-5 gap-5">
+              {COLUMNS.map(({ id: colId, label }) =>
+                renderColumn(colId, label, groupedTasks[colId])
+              )}
+
+              <div className="h-[70vh]">
+                <ChatPanel projectId={id} />
+              </div>
+
+              <div className="h-[70vh]">
+                <ActivityPanel activities={activities} onlineUsers={onlineUsers} />
+              </div>
+            </div>
+          </DragDropContext>
+        )}
       </div>
     </div>
   );

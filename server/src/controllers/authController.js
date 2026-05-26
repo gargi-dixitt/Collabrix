@@ -8,7 +8,7 @@ import {
   loginSchema,
 } from "../validators/authValidator.js";
 
-export const registerUser = async (req, res) => {
+export const registerUser = async (req, res, next) => {
   try {
     const validatedData = registerSchema.parse(req.body);
 
@@ -18,6 +18,7 @@ export const registerUser = async (req, res) => {
 
     if (existingUser) {
       return res.status(400).json({
+        success: false,
         message: "User already exists",
       });
     }
@@ -41,6 +42,7 @@ export const registerUser = async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       token,
       user: {
         id: user._id,
@@ -49,14 +51,17 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    const status = error instanceof ZodError ? 400 : 500;
-    res.status(status).json({
-      message: error instanceof ZodError ? error.errors[0].message : error.message,
-    });
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors[0].message,
+      });
+    }
+    next(error);
   }
 };
 
-export const loginUser = async (req, res) => {
+export const loginUser = async (req, res, next) => {
   try {
     const validatedData = loginSchema.parse(req.body);
 
@@ -66,6 +71,7 @@ export const loginUser = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
+        success: false,
         message: "Invalid credentials",
       });
     }
@@ -77,6 +83,7 @@ export const loginUser = async (req, res) => {
 
     if (!isPasswordCorrect) {
       return res.status(400).json({
+        success: false,
         message: "Invalid credentials",
       });
     }
@@ -90,6 +97,7 @@ export const loginUser = async (req, res) => {
     );
 
     res.json({
+      success: true,
       token,
       user: {
         id: user._id,
@@ -98,9 +106,12 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    const status = error instanceof ZodError ? 400 : 500;
-    res.status(status).json({
-      message: error instanceof ZodError ? error.errors[0].message : error.message,
-    });
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors[0].message,
+      });
+    }
+    next(error);
   }
 };
