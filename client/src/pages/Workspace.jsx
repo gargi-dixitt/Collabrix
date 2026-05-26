@@ -61,8 +61,8 @@ const Workspace = () => {
         <h1 className="text-5xl font-bold mb-2">Workspace</h1>
         <p className="text-zinc-400 mb-10">Manage your projects</p>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10">
-          <h2 className="text-xl font-semibold mb-5">Create Project</h2>
+        <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-2xl p-6 mb-10 max-w-4xl">
+          <h2 className="text-xl font-bold mb-4 tracking-tight text-zinc-300">Create Project</h2>
 
           <div className="flex flex-col gap-4">
             <input
@@ -70,20 +70,20 @@ const Workspace = () => {
               placeholder="Project name"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-zinc-600 transition"
+              className="bg-zinc-900/60 border border-zinc-800/85 rounded-xl px-4 py-3 outline-none focus:border-zinc-700 transition text-sm text-white"
             />
 
             <textarea
               placeholder="Project description (optional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none h-28 resize-none focus:border-zinc-600 transition"
+              className="bg-zinc-900/60 border border-zinc-800/85 rounded-xl px-4 py-3 outline-none h-24 resize-none focus:border-zinc-700 transition text-sm text-white"
             />
 
             <button
               onClick={createProject}
-              disabled={creating}
-              className="bg-white text-black py-3 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+              disabled={creating || !projectName.trim()}
+              className="bg-white text-black py-3 rounded-xl font-bold hover:bg-zinc-200 transition disabled:opacity-50 text-sm"
             >
               {creating ? "Creating..." : "Create Project"}
             </button>
