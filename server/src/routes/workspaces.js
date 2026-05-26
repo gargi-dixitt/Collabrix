@@ -1,1 +1,16 @@
-﻿import { Router } from "express";\nimport { getWorkspaces } from "../controllers/workspaceController.js";\nconst router = Router();\nrouter.get("/", getWorkspaces);\nexport default router;
+﻿import express from "express";
+
+import {
+  createWorkspace,
+  getWorkspaces,
+} from "../controllers/workspaceController.js";
+
+import authMiddleware from "../middleware/auth.js";
+
+const router = express.Router();
+
+router.post("/", authMiddleware, createWorkspace);
+
+router.get("/", authMiddleware, getWorkspaces);
+
+export default router;
