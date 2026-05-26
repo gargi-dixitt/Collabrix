@@ -430,11 +430,23 @@ const Project = () => {
                       </p>
                     )}
                     
-                    {/* Due Date Indicator */}
-                    {task.dueDate && (
-                      <div className="flex items-center gap-1 mt-2 text-[10px] text-zinc-600 font-mono">
-                        <span>📅</span>
-                        <span>{new Date(task.dueDate).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                    {/* Due Date & Checklist Indicators */}
+                    {(task.dueDate || (task.subtasks && task.subtasks.length > 0)) && (
+                      <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-[10px] text-zinc-500 font-mono select-none">
+                        {task.dueDate && (
+                          <div className="flex items-center gap-1">
+                            <span>📅</span>
+                            <span>{new Date(task.dueDate).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                          </div>
+                        )}
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <div className="flex items-center gap-1 bg-zinc-950/40 border border-zinc-900 px-1.5 py-0.5 rounded text-zinc-400">
+                            <span>📋</span>
+                            <span>
+                              {task.subtasks.filter((s) => s.isCompleted).length}/{task.subtasks.length}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -17,6 +17,7 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
 
   const commentEndRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -120,6 +121,30 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
   const handleRemoveLabel = (labelToRemove) => {
     const updatedLabels = (task.labels || []).filter((l) => l !== labelToRemove);
     saveTaskUpdates({ labels: updatedLabels });
+  };
+
+  const handleAddSubtask = (e) => {
+    if (e.key === "Enter" && newSubtaskTitle.trim()) {
+      e.preventDefault();
+      const updatedSubtasks = [
+        ...(task.subtasks || []),
+        { title: newSubtaskTitle.trim(), isCompleted: false },
+      ];
+      saveTaskUpdates({ subtasks: updatedSubtasks });
+      setNewSubtaskTitle("");
+    }
+  };
+
+  const handleToggleSubtask = (index) => {
+    const updatedSubtasks = (task.subtasks || []).map((sub, idx) =>
+      idx === index ? { ...sub, isCompleted: !sub.isCompleted } : sub
+    );
+    saveTaskUpdates({ subtasks: updatedSubtasks });
+  };
+
+  const handleDeleteSubtask = (index) => {
+    const updatedSubtasks = (task.subtasks || []).filter((_, idx) => idx !== index);
+    saveTaskUpdates({ subtasks: updatedSubtasks });
   };
 
   const handleAddComment = async (e) => {
@@ -261,6 +286,84 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
                   onChange={(e) => setNewLabel(e.target.value)}
                   onKeyDown={handleAddLabel}
                   className="bg-transparent border border-dashed border-zinc-800 text-zinc-400 text-xs px-3 py-1 rounded-full outline-none focus:border-zinc-650 transition placeholder-zinc-700 max-w-[120px]"
+                />
+              </div>
+            </div>
+
+            {/* Subtasks Checklist */}
+            <div className="border-t border-zinc-900 pt-6">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-zinc-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                  <span>📋</span> Checklist ({(task.subtasks || []).filter((s) => s.isCompleted).length} of {(task.subtasks || []).length})
+                </h4>
+                {task.subtasks && task.subtasks.length > 0 && (
+                  <span className="text-[10px] text-zinc-500 font-mono select-none">
+                    {Math.round(
+                      ((task.subtasks || []).filter((s) => s.isCompleted).length /
+                        (task.subtasks || []).length) *
+                        100
+                    )}
+                    %
+                  </span>
+                )}
+              </div>
+
+              {/* Progress bar */}
+              {task.subtasks && task.subtasks.length > 0 && (
+                <div className="w-full h-1 bg-zinc-900 rounded-full mb-4 overflow-hidden border border-zinc-950">
+                  <div
+                    style={{
+                      width: `${
+                        ((task.subtasks || []).filter((s) => s.isCompleted).length /
+                          (task.subtasks || []).length) *
+                        100
+                      }%`,
+                    }}
+                    className="h-full bg-white transition-all duration-300 rounded-full"
+                  />
+                </div>
+              )}
+
+              {/* Subtasks List */}
+              <div className="flex flex-col gap-2.5">
+                {(task.subtasks || []).map((sub, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between group bg-zinc-900/10 border border-zinc-900/30 hover:border-zinc-800 rounded-xl px-3.5 py-2 transition"
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer select-none min-w-0 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={sub.isCompleted}
+                        onChange={() => handleToggleSubtask(index)}
+                        className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-white focus:ring-zinc-700 outline-none cursor-pointer accent-white transition"
+                      />
+                      <span
+                        className={`text-xs break-words leading-relaxed ${
+                          sub.isCompleted ? "line-through text-zinc-650" : "text-zinc-350 hover:text-white"
+                        }`}
+                      >
+                        {sub.title}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSubtask(index)}
+                      className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition text-[10px] px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add Subtask Input */}
+                <input
+                  type="text"
+                  placeholder="+ Add subtask checklist item (Enter)"
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={handleAddSubtask}
+                  className="bg-transparent border border-dashed border-zinc-850 focus:border-zinc-700 hover:border-zinc-750 text-zinc-400 text-xs px-3.5 py-2 rounded-xl outline-none transition placeholder-zinc-700 w-full"
                 />
               </div>
             </div>
