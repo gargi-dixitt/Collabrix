@@ -9,6 +9,8 @@ import socket from "../socket";
 import Sidebar from "../components/Sidebar";
 import ChatPanel from "../components/chat/ChatPanel";
 import ActivityPanel from "../components/ActivityPanel";
+import TaskModal from "../components/board/TaskModal";
+import Avatar from "../components/ui/Avatar";
 
 const COLUMNS = [
   { id: "todo", label: "Todo" },
@@ -37,6 +39,9 @@ const Project = () => {
 
   // Dragging state for visual feedback
   const [draggingTaskId, setDraggingTaskId] = useState(null);
+  
+  // Selected task for editing/details view
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -312,7 +317,8 @@ const Project = () => {
               <Draggable key={task._id} draggableId={task._id} index={index}>
                 {(provided, snapshot) => (
                   <div
-                    className={`bg-zinc-900 border rounded-2xl p-4 transition group cursor-grab active:cursor-grabbing shadow-sm ${
+                    onClick={() => !task._id.startsWith("temp-") && setSelectedTaskId(task._id)}
+                    className={`bg-zinc-900 border rounded-2xl p-4 transition group cursor-pointer active:cursor-grabbing shadow-sm hover:scale-[1.01] hover:shadow-md ${
                       snapshot.isDragging
                         ? "border-zinc-600 shadow-lg shadow-black/50 rotate-1 scale-105"
                         : draggingTaskId && draggingTaskId !== task._id
@@ -323,14 +329,38 @@ const Project = () => {
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                   >
+                    {/* Render labels if any */}
+                    {task.labels && task.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {task.labels.map((l, i) => (
+                          <span
+                            key={i}
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-750 uppercase tracking-wider"
+                          >
+                            {l}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <h3 className="font-bold text-sm text-zinc-200 group-hover:text-white transition tracking-tight">
                       {task.title}
                     </h3>
+                    
                     {task.description && (
                       <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">
                         {task.description}
                       </p>
                     )}
+                    
+                    {/* Due Date Indicator */}
+                    {task.dueDate && (
+                      <div className="flex items-center gap-1 mt-2 text-[10px] text-zinc-600 font-mono">
+                        <span>📅</span>
+                        <span>{new Date(task.dueDate).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-900">
                       <span
                         className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
@@ -339,8 +369,15 @@ const Project = () => {
                       >
                         {task.priority}
                       </span>
-                      {task._id.startsWith("temp-") && (
+                      
+                      {task._id.startsWith("temp-") ? (
                         <span className="text-[10px] text-zinc-600 italic">saving...</span>
+                      ) : (
+                        task.assignee && (
+                          <div className="flex items-center gap-1.5" title={`Assigned to ${task.assignee.name}`}>
+                            <Avatar alt={task.assignee.name} size="xs" />
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
@@ -488,6 +525,15 @@ const Project = () => {
               </div>
             </div>
           </DragDropContext>
+        )}
+
+        {selectedTaskId && (
+          <TaskModal
+            taskId={selectedTaskId}
+            projectId={id}
+            onClose={() => setSelectedTaskId(null)}
+            onTaskUpdated={fetchTasks}
+          />
         )}
       </div>
     </div>
