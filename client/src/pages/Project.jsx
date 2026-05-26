@@ -180,33 +180,38 @@ const Project = () => {
     <Droppable droppableId={columnId} key={columnId}>
       {(provided) => (
         <div
-          className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 min-h-[400px] flex flex-col"
+          className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-5 min-h-[450px] flex flex-col transition hover:border-zinc-800"
           ref={provided.innerRef}
           {...provided.droppableProps}
         >
-          <h2 className="text-lg font-bold mb-4 text-zinc-300">{columnLabel}</h2>
+          <div className="flex justify-between items-center mb-4 border-b border-zinc-900 pb-3">
+            <h2 className="text-sm font-extrabold text-zinc-400 uppercase tracking-wider">{columnLabel}</h2>
+            <span className="bg-zinc-905 border border-zinc-800 text-zinc-400 font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+              {columnTasks.length}
+            </span>
+          </div>
 
-          <div className="flex flex-col gap-3 flex-1">
+          <div className="flex flex-col gap-3 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin">
             {columnTasks.map((task, index) => (
               <Draggable key={task._id} draggableId={task._id} index={index}>
                 {(provided) => (
                   <div
-                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4"
+                    className="bg-zinc-900 border border-zinc-850 hover:border-zinc-700 rounded-2xl p-4 transition group cursor-grab active:cursor-grabbing shadow-sm"
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                   >
-                    <h3 className="font-semibold text-sm">{task.title}</h3>
+                    <h3 className="font-bold text-sm text-zinc-200 group-hover:text-white transition tracking-tight">{task.title}</h3>
                     {task.description && (
-                      <p className="text-zinc-500 text-xs mt-2">{task.description}</p>
+                      <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-900">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                         task.priority === "high"
-                          ? "bg-red-900 text-red-300"
+                          ? "bg-red-950/30 text-red-400 border border-red-900/30"
                           : task.priority === "low"
-                          ? "bg-zinc-800 text-zinc-400"
-                          : "bg-yellow-900 text-yellow-300"
+                          ? "bg-zinc-800/30 text-zinc-400 border border-zinc-700/30"
+                          : "bg-amber-950/30 text-amber-400 border border-amber-900/30"
                       }`}>
                         {task.priority}
                       </span>
