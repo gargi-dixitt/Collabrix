@@ -6,7 +6,7 @@ export const createProject = async (req, res) => {
 
     if (!name || !workspaceId) {
       return res.status(400).json({
-        message: "Project name and workspace are required",
+        message: "Name and workspaceId are required",
       });
     }
 
@@ -14,8 +14,8 @@ export const createProject = async (req, res) => {
       name,
       description,
       workspace: workspaceId,
-      createdBy: req.user.id,
-      members: [req.user.id],
+      createdBy: req.user._id,
+      members: [req.user._id],
     });
 
     res.status(201).json(project);
