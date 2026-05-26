@@ -9,14 +9,12 @@ function formatTime(dateStr) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatPanel({ projectId }) {
+export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  // Typing indicator state
-  const [typingUsers, setTypingUsers] = useState([]);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
 
@@ -125,15 +123,6 @@ export default function ChatPanel({ projectId }) {
       });
     };
 
-    const onTyping = ({ userName, isTyping }) => {
-      if (userName === user.name) return; // don't show own indicator
-      setTypingUsers((prev) => {
-        if (isTyping && !prev.includes(userName)) return [...prev, userName];
-        if (!isTyping) return prev.filter((n) => n !== userName);
-        return prev;
-      });
-    };
-
     const onPresenceStatus = ({ name, type }) => {
       if (name === user.name) return; // ignore self system messages
       setMessages((prev) => [
@@ -152,13 +141,11 @@ export default function ChatPanel({ projectId }) {
     };
 
     socket.on("receive-message", onMessage);
-    socket.on("user-typing", onTyping);
     socket.on("presence-status", onPresenceStatus);
     socket.on("connect", onConnect);
 
     return () => {
       socket.off("receive-message", onMessage);
-      socket.off("user-typing", onTyping);
       socket.off("presence-status", onPresenceStatus);
       socket.off("connect", onConnect);
       stopTyping();
@@ -169,13 +156,15 @@ export default function ChatPanel({ projectId }) {
   // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingUsers]);
+  }, [messages, parentTypingUsers]);
 
   const typingText =
-    typingUsers.length === 1
-      ? `${typingUsers[0]} is typing...`
-      : typingUsers.length > 1
-      ? `${typingUsers.slice(0, -1).join(", ")} and ${typingUsers.at(-1)} are typing...`
+    parentTypingUsers.length === 1
+      ? `${parentTypingUsers[0]} is typing...`
+      : parentTypingUsers.length > 2
+      ? "Multiple people are typing..."
+      : parentTypingUsers.length > 0
+      ? `${parentTypingUsers.join(" and ")} are typing...`
       : null;
 
   return (

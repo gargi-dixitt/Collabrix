@@ -43,6 +43,9 @@ const Project = () => {
   // Selected task for editing/details view
   const [selectedTaskId, setSelectedTaskId] = useState(null);
 
+  // Global typing tracker for online active indicators
+  const [typingUsers, setTypingUsers] = useState([]);
+
   // Real-time task search & filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all"); // "all", "high", "medium", "low"
@@ -312,12 +315,22 @@ const Project = () => {
       });
     };
 
+    const onTyping = ({ userName, isTyping }) => {
+      if (userName === user.name) return;
+      setTypingUsers((prev) => {
+        if (isTyping && !prev.includes(userName)) return [...prev, userName];
+        if (!isTyping) return prev.filter((n) => n !== userName);
+        return prev;
+      });
+    };
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("task:created", onTaskCreated);
     socket.on("task:moved", onTaskMoved);
     socket.on("comment:new", onNewComment);
     socket.on("receive-message", onReceiveMessage);
+    socket.on("user-typing", onTyping);
     socket.on("task:bulk-update", onBulkUpdate);
     socket.on("receive-task-update", onLegacyUpdate); // legacy
     socket.on("online-users", onOnlineUsers);
@@ -333,6 +346,7 @@ const Project = () => {
       socket.off("task:moved", onTaskMoved);
       socket.off("comment:new", onNewComment);
       socket.off("receive-message", onReceiveMessage);
+      socket.off("user-typing", onTyping);
       socket.off("task:bulk-update", onBulkUpdate);
       socket.off("receive-task-update", onLegacyUpdate);
       socket.off("online-users", onOnlineUsers);
@@ -475,11 +489,19 @@ const Project = () => {
             {/* Live Active Teammates (Overlapping Avatar Pills) */}
             {onlineUsers.length > 0 && (
               <div className="flex -space-x-2.5 items-center mr-2" title="Teammates currently viewing this project">
-                {onlineUsers.slice(0, 5).map((u, index) => (
-                  <div key={index} className="transition transform hover:translate-y-[-2px] duration-200">
-                    <Avatar alt={u.name} size="xs" showRing={true} ringColor="ring-emerald-500" />
-                  </div>
-                ))}
+                {onlineUsers.slice(0, 5).map((u, index) => {
+                  const isTyping = typingUsers.includes(u.name);
+                  return (
+                    <div key={index} className="transition transform hover:translate-y-[-2px] duration-200" title={isTyping ? `${u.name} is typing...` : u.name}>
+                      <Avatar
+                        alt={u.name}
+                        size="xs"
+                        showRing={true}
+                        ringColor={isTyping ? "ring-purple-500 animate-pulse border-purple-500/50" : "ring-emerald-500"}
+                      />
+                    </div>
+                  );
+                })}
                 {onlineUsers.length > 5 && (
                   <span className="flex items-center justify-center bg-zinc-900 border border-zinc-800 text-[9px] font-extrabold text-zinc-400 w-6 h-6 rounded-full shadow-sm pl-0.5 select-none ring-2 ring-black">
                     +{onlineUsers.length - 5}
@@ -672,7 +694,7 @@ const Project = () => {
               )}
 
               <div className="h-[70vh]">
-                <ChatPanel projectId={id} />
+                <ChatPanel projectId={id} parentTypingUsers={typingUsers} />
               </div>
 
               <div className="h-[70vh]">
