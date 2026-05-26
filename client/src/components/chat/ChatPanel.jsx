@@ -70,14 +70,23 @@ export default function ChatPanel({ projectId }) {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-zinc-800">
-        <h2 className="text-lg font-semibold">Team Chat</h2>
+    <div className="flex flex-col h-full bg-zinc-950/80 border border-zinc-900 rounded-3xl overflow-hidden hover:border-zinc-800 transition">
+      <div className="px-5 py-4 border-b border-zinc-900 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">💬</span>
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-zinc-400">Team Chat</h2>
+        </div>
+        <span className="text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-500 px-2 py-0.5 rounded font-mono">
+          Socket Active
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 scrollbar-thin">
         {messages.length === 0 && (
-          <p className="text-zinc-600 text-sm text-center mt-4">No messages yet. Say hi 👋</p>
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <span className="text-2xl mb-2">💬</span>
+            <p className="text-zinc-600 text-xs">No messages yet. Start the conversation!</p>
+          </div>
         )}
         {messages.map((msg) => {
           const isMe = msg.sender?._id === user.id;
@@ -86,14 +95,14 @@ export default function ChatPanel({ projectId }) {
               key={msg._id}
               className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
             >
-              <span className="text-zinc-500 text-xs mb-1">
+              <span className="text-zinc-500 text-[10px] mb-1 font-mono px-1">
                 {msg.sender?.name || "Unknown"}
               </span>
               <div
-                className={`px-4 py-2 rounded-2xl text-sm max-w-[85%] break-words ${
+                className={`px-3.5 py-2 rounded-2xl text-xs max-w-[85%] break-words leading-relaxed shadow-sm ${
                   isMe
-                    ? "bg-white text-black"
-                    : "bg-zinc-800 text-white"
+                    ? "bg-white text-black font-semibold rounded-tr-sm"
+                    : "bg-zinc-900 text-zinc-200 border border-zinc-850 rounded-tl-sm"
                 }`}
               >
                 {msg.text}
@@ -104,19 +113,19 @@ export default function ChatPanel({ projectId }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="px-4 py-3 border-t border-zinc-800 flex gap-2">
+      <div className="p-3 border-t border-zinc-900 bg-zinc-950/20 flex gap-2">
         <input
           type="text"
           placeholder="Send a message..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-zinc-500 transition"
+          className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-xs outline-none focus:border-zinc-700 transition text-white"
         />
         <button
           onClick={sendMessage}
           disabled={sending || !text.trim()}
-          className="bg-white text-black px-4 py-2 rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-40"
+          className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-zinc-200 transition disabled:opacity-40"
         >
           Send
         </button>
