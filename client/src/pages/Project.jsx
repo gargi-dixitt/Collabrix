@@ -1,6 +1,12 @@
 ﻿import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+} from "@hello-pangea/dnd";
+
 import axios from "../lib/axios";
 
 import socket from "../socket";
@@ -90,17 +96,25 @@ const Project = () => {
     }
   };
 
-  const todoTasks = tasks.filter(
-    (task) => task.status === "todo"
-  );
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
 
-  const inProgressTasks = tasks.filter(
-    (task) => task.status === "in-progress"
-  );
+    const taskId = result.draggableId;
 
-  const doneTasks = tasks.filter(
-    (task) => task.status === "done"
-  );
+    const newStatus = result.destination.droppableId;
+
+    await updateTaskStatus(taskId, newStatus);
+  };
+
+  const groupedTasks = {
+    todo: tasks.filter((task) => task.status === "todo"),
+
+    "in-progress": tasks.filter(
+      (task) => task.status === "in-progress"
+    ),
+
+    done: tasks.filter((task) => task.status === "done"),
+  };
 
   useEffect(() => {
     fetchTasks();
@@ -116,58 +130,59 @@ const Project = () => {
     };
   }, []);
 
-  const renderTaskCard = (task) => (
-    <div
-      key={task._id}
-      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
-    >
-      <h3 className="text-xl font-semibold">
-        {task.title}
-      </h3>
-
-      <p className="text-zinc-400 mt-3">
-        {task.description}
-      </p>
-
-      <div className="flex items-center justify-between mt-5">
-        <span className="text-sm text-zinc-500">
-          {task.priority}
-        </span>
-
-        <span className="text-sm text-zinc-500">
-          {task.status}
-        </span>
-      </div>
-
-      <div className="flex gap-2 mt-5">
-        <button
-          onClick={() =>
-            updateTaskStatus(task._id, "todo")
-          }
-          className="bg-zinc-800 px-3 py-2 rounded-lg text-sm"
+  const renderColumn = (title, columnId, columnTasks) => (
+    <Droppable droppableId={columnId}>
+      {(provided) => (
+        <div
+          className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 min-h-[600px]"
+          ref={provided.innerRef}
+          {...provided.droppableProps}
         >
-          Todo
-        </button>
+          <h2 className="text-2xl font-bold mb-5">
+            {title}
+          </h2>
 
-        <button
-          onClick={() =>
-            updateTaskStatus(task._id, "in-progress")
-          }
-          className="bg-blue-600 px-3 py-2 rounded-lg text-sm"
-        >
-          Progress
-        </button>
+          <div className="flex flex-col gap-4">
+            {columnTasks.map((task, index) => (
+              <Draggable
+                key={task._id}
+                draggableId={task._id}
+                index={index}
+              >
+                {(provided) => (
+                  <div
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    <h3 className="text-xl font-semibold">
+                      {task.title}
+                    </h3>
 
-        <button
-          onClick={() =>
-            updateTaskStatus(task._id, "done")
-          }
-          className="bg-green-600 px-3 py-2 rounded-lg text-sm"
-        >
-          Done
-        </button>
-      </div>
-    </div>
+                    <p className="text-zinc-400 mt-3">
+                      {task.description}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-5">
+                      <span className="text-sm text-zinc-500">
+                        {task.priority}
+                      </span>
+
+                      <span className="text-sm text-zinc-500">
+                        {task.status}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+
+            {provided.placeholder}
+          </div>
+        </div>
+      )}
+    </Droppable>
   );
 
   return (
@@ -209,41 +224,31 @@ const Project = () => {
           </div>
         </div>
 
-        <div className="grid xl:grid-cols-4 gap-6">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
-            <h2 className="text-2xl font-bold mb-5">
-              Todo
-            </h2>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="grid xl:grid-cols-4 gap-6">
+            {renderColumn(
+              "Todo",
+              "todo",
+              groupedTasks.todo
+            )}
 
-            <div className="flex flex-col gap-4">
-              {todoTasks.map(renderTaskCard)}
+            {renderColumn(
+              "In Progress",
+              "in-progress",
+              groupedTasks["in-progress"]
+            )}
+
+            {renderColumn(
+              "Done",
+              "done",
+              groupedTasks.done
+            )}
+
+            <div className="h-[80vh]">
+              <ChatPanel projectId={id} />
             </div>
           </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
-            <h2 className="text-2xl font-bold mb-5">
-              In Progress
-            </h2>
-
-            <div className="flex flex-col gap-4">
-              {inProgressTasks.map(renderTaskCard)}
-            </div>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5">
-            <h2 className="text-2xl font-bold mb-5">
-              Done
-            </h2>
-
-            <div className="flex flex-col gap-4">
-              {doneTasks.map(renderTaskCard)}
-            </div>
-          </div>
-
-          <div className="h-[80vh]">
-            <ChatPanel projectId={id} />
-          </div>
-        </div>
+        </DragDropContext>
       </div>
     </div>
   );
