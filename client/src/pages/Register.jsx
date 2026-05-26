@@ -53,7 +53,7 @@ const Register = () => {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+              className="w-full bg-zinc-850 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-zinc-650 transition text-sm text-white"
             />
           </div>
 
@@ -66,7 +66,7 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+              className="w-full bg-zinc-850 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-zinc-650 transition text-sm text-white"
             />
           </div>
 
@@ -79,7 +79,7 @@ const Register = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+              className="w-full bg-zinc-850 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-zinc-650 transition text-sm text-white"
             />
           </div>
 
