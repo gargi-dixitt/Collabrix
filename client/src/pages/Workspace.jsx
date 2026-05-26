@@ -1,11 +1,15 @@
 ﻿import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+
 import axios from "../lib/axios";
 
 const Workspace = () => {
+  const navigate = useNavigate();
+
   const { id } = useParams();
 
   const [projects, setProjects] = useState([]);
+
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -100,7 +104,8 @@ const Workspace = () => {
         {projects.map((project) => (
           <div
             key={project._id}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
+            onClick={() => navigate(`/project/${project._id}`)}
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 cursor-pointer hover:border-zinc-600 transition"
           >
             <h2 className="text-2xl font-semibold">
               {project.name}

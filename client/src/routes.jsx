@@ -4,12 +4,11 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import Workspace from "./pages/Workspace";
+import Project from "./pages/Project";
 import NotFound from "./pages/NotFound";
 
 import ProtectedRoute from "./components/ProtectedRoute";
-import Workspace from "./pages/Workspace";
-
-<Route path="/workspace/:id" element={<Workspace />} />
 
 const router = createBrowserRouter([
   {
@@ -32,6 +31,24 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/workspace/:id",
+    element: (
+      <ProtectedRoute>
+        <Workspace />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/project/:id",
+    element: (
+      <ProtectedRoute>
+        <Project />
       </ProtectedRoute>
     ),
   },

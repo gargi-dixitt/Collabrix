@@ -2,9 +2,15 @@
 
 export const createTask = async (req, res) => {
   try {
-    const { title, description, project, workspace, priority } = req.body;
+    const {
+      title,
+      description,
+      project,
+      workspace,
+      priority,
+    } = req.body;
 
-    if (!title || !project || !workspace) {
+    if (!title || !project) {
       return res.status(400).json({
         message: "Missing required fields",
       });
@@ -29,10 +35,11 @@ export const createTask = async (req, res) => {
 
 export const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find()
-      .populate("project")
-      .populate("workspace")
-      .populate("createdBy", "name email");
+    const { projectId } = req.params;
+
+    const tasks = await Task.find({
+      project: projectId,
+    }).sort({ createdAt: -1 });
 
     res.status(200).json(tasks);
   } catch (error) {
