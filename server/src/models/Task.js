@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
   {
@@ -21,7 +21,6 @@ const taskSchema = new mongoose.Schema(
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "workspace",
-      required: true,
     },
 
     priority: {

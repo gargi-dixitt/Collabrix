@@ -1,11 +1,9 @@
-﻿import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Register = () => {
   const navigate = useNavigate();
-
   const { register } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -15,94 +13,96 @@ const Register = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (event) => {
-    setFormData({
-      ...formData,
-      [event.target.name]: event.target.value,
-    });
+  const handleChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      setLoading(true);
-
       await register(formData);
-
       navigate("/dashboard");
-    } catch (error) {
-      console.error(error);
-      alert("Registration failed");
+    } catch (err) {
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md bg-slate-900 p-8 rounded-2xl border border-slate-800"
-      >
-        <h1 className="text-3xl font-bold mb-6">
-          Create Account
-        </h1>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+        <h1 className="text-4xl font-bold mb-2">Create Account</h1>
+        <p className="text-zinc-500 text-sm mb-8">Join Collabrix and start collaborating.</p>
 
-        <div className="mb-4">
-          <label className="block mb-2 text-sm">
-            Name
-          </label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Name</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="Aryan"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+            />
+          </div>
 
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Aryan"
-            className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 outline-none"
-          />
-        </div>
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Email</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+            />
+          </div>
 
-        <div className="mb-4">
-          <label className="block mb-2 text-sm">
-            Email
-          </label>
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Password</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-zinc-500 transition"
+            />
+          </div>
 
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="you@example.com"
-            className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 outline-none"
-          />
-        </div>
+          {error && (
+            <p className="text-red-500 text-sm">{error}</p>
+          )}
 
-        <div className="mb-6">
-          <label className="block mb-2 text-sm">
-            Password
-          </label>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-white text-black py-3 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+          >
+            {loading ? "Creating account..." : "Create Account"}
+          </button>
+        </form>
 
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="••••••••"
-            className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 outline-none"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-white text-black py-3 rounded-lg font-semibold"
-        >
-          {loading ? "Creating..." : "Create Account"}
-        </button>
-      </form>
+        <p className="text-zinc-500 text-sm mt-6 text-center">
+          Already have an account?{" "}
+          <Link to="/login" className="text-white hover:underline">
+            Login
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };

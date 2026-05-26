@@ -1,4 +1,5 @@
-﻿import bcrypt from "bcrypt";
+import { ZodError } from "zod";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.js";
@@ -48,8 +49,9 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    const status = error instanceof ZodError ? 400 : 500;
+    res.status(status).json({
+      message: error instanceof ZodError ? error.errors[0].message : error.message,
     });
   }
 };
@@ -96,8 +98,9 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    const status = error instanceof ZodError ? 400 : 500;
+    res.status(status).json({
+      message: error instanceof ZodError ? error.errors[0].message : error.message,
     });
   }
 };

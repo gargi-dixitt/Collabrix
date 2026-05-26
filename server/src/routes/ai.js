@@ -1,1 +1,15 @@
-﻿import { Router } from "express";\nimport { processAI } from "../controllers/aiController.js";\nconst router = Router();\nrouter.post("/", processAI);\nexport default router;
+﻿import express from "express";
+
+import authMiddleware from "../middleware/auth.js";
+
+import { generateTasks } from "../controllers/aiController.js";
+
+const router = express.Router();
+
+router.post(
+  "/generate-tasks",
+  authMiddleware,
+  generateTasks
+);
+
+export default router;
