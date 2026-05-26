@@ -1,7 +1,10 @@
 ﻿import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "../lib/axios";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaces, setWorkspaces] = useState([]);
 
@@ -23,6 +26,8 @@ const Dashboard = () => {
 
   const createWorkspace = async () => {
     try {
+      if (!workspaceName) return;
+
       const token = localStorage.getItem("token");
 
       await axios.post(
@@ -38,6 +43,7 @@ const Dashboard = () => {
       );
 
       setWorkspaceName("");
+
       fetchWorkspaces();
     } catch (error) {
       console.log(error);
@@ -79,7 +85,8 @@ const Dashboard = () => {
         {workspaces.map((workspace) => (
           <div
             key={workspace._id}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
+            onClick={() => navigate(`/workspace/${workspace._id}`)}
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 cursor-pointer hover:border-zinc-600 transition"
           >
             <h2 className="text-2xl font-semibold">
               {workspace.name}

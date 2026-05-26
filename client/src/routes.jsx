@@ -7,6 +7,9 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import Workspace from "./pages/Workspace";
+
+<Route path="/workspace/:id" element={<Workspace />} />
 
 const router = createBrowserRouter([
   {

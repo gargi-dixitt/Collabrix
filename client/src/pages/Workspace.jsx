@@ -1,39 +1,19 @@
-﻿import mongoose from "mongoose";
+﻿import { useParams } from "react-router-dom";
 
-const workspaceSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+const Workspace = () => {
+  const { id } = useParams();
 
-    description: {
-      type: String,
-      default: "",
-    },
+  return (
+    <div className="min-h-screen bg-black text-white p-10">
+      <h1 className="text-4xl font-bold">
+        Workspace
+      </h1>
 
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
-    members: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-  },
-  {
-    timestamps: true,
-  }
-);
-
-const Workspace = mongoose.model(
-  "Workspace",
-  workspaceSchema
-);
+      <p className="text-zinc-400 mt-2">
+        Workspace ID: {id}
+      </p>
+    </div>
+  );
+};
 
 export default Workspace;
