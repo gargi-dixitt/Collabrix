@@ -57,21 +57,21 @@ const Dashboard = () => {
         <h1 className="text-5xl font-bold mb-2">Welcome to Collabrix</h1>
         <p className="text-zinc-400 mb-10">Your developer collaboration workspace</p>
 
-        <div className="flex gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row gap-4 mb-10 max-w-4xl bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/80">
           <input
             type="text"
             placeholder="Enter workspace name"
             value={workspaceName}
             onChange={(e) => setWorkspaceName(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 outline-none focus:border-zinc-600 transition"
+            className="flex-1 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-5 py-4 outline-none focus:border-zinc-700 transition text-sm text-white"
           />
           <button
             onClick={createWorkspace}
-            disabled={creating}
-            className="bg-white text-black px-8 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+            disabled={creating || !workspaceName.trim()}
+            className="bg-white text-black px-8 py-4 sm:py-0 rounded-xl font-bold hover:bg-zinc-200 transition disabled:opacity-50 text-sm whitespace-nowrap"
           >
-            {creating ? "Creating..." : "Create"}
+            {creating ? "Creating..." : "Create Workspace"}
           </button>
         </div>
 
