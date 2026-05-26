@@ -1,7 +1,9 @@
 ﻿import http from "http";
+
 import { Server } from "socket.io";
 
 import app from "./app.js";
+
 import connectDB from "./db.js";
 
 const PORT = process.env.PORT || 4000;
@@ -20,13 +22,18 @@ io.on("connection", (socket) => {
 
   socket.on("join-project", (projectId) => {
     socket.join(projectId);
-
-    console.log(`Socket joined project ${projectId}`);
   });
 
   socket.on("task-updated", (data) => {
     io.to(data.projectId).emit(
       "receive-task-update",
+      data
+    );
+  });
+
+  socket.on("send-message", (data) => {
+    io.to(data.projectId).emit(
+      "receive-message",
       data
     );
   });
