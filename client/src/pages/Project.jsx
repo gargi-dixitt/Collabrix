@@ -447,7 +447,23 @@ const Project = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            {/* Live Active Teammates (Overlapping Avatar Pills) */}
+            {onlineUsers.length > 0 && (
+              <div className="flex -space-x-2.5 items-center mr-2" title="Teammates currently viewing this project">
+                {onlineUsers.slice(0, 5).map((u, index) => (
+                  <div key={index} className="transition transform hover:translate-y-[-2px] duration-200">
+                    <Avatar alt={u.name} size="xs" showRing={true} ringColor="ring-emerald-500" />
+                  </div>
+                ))}
+                {onlineUsers.length > 5 && (
+                  <span className="flex items-center justify-center bg-zinc-900 border border-zinc-800 text-[9px] font-extrabold text-zinc-400 w-6 h-6 rounded-full shadow-sm pl-0.5 select-none ring-2 ring-black">
+                    +{onlineUsers.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Socket status dot */}
             <div
               className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-500"
