@@ -231,7 +231,7 @@ const Project = () => {
         <h1 className="text-4xl font-bold mb-8">Project Board</h1>
 
         {/* Manual task creation */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
+        <div className="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-6 mb-6">
           <h2 className="text-base font-semibold mb-4 text-zinc-300">Add Task</h2>
           <div className="flex flex-col gap-3">
             <input
@@ -239,18 +239,18 @@ const Project = () => {
               placeholder="Task title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none text-sm focus:border-zinc-600 transition"
+              className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none text-sm focus:border-zinc-700 transition text-white"
             />
             <textarea
               placeholder="Description (optional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none h-20 text-sm resize-none focus:border-zinc-600 transition"
+              className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none h-20 text-sm resize-none focus:border-zinc-700 transition text-white"
             />
             <button
               onClick={createTask}
               disabled={creating || !title.trim()}
-              className="bg-white text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+              className="bg-white text-black py-2.5 rounded-xl text-sm font-bold hover:bg-zinc-200 transition disabled:opacity-50"
             >
               {creating ? "Creating..." : "Create Task"}
             </button>
