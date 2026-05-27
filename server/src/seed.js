@@ -10,7 +10,7 @@ import Message from "./models/Message.js";
 import Resource from "./models/Resource.js";
 import Collection from "./models/Collection.js";
 import Comment from "./models/Comment.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 dotenv.config();
 
