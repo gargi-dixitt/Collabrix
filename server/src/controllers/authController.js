@@ -3,124 +3,404 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.js";
+
 import {
   registerSchema,
   loginSchema,
 } from "../validators/authValidator.js";
 
-export const registerUser = async (req, res, next) => {
-  try {
-    const validatedData = registerSchema.parse(req.body);
+/*
+|--------------------------------------------------------------------------
+| Generate JWT Token
+|--------------------------------------------------------------------------
+*/
 
-    const existingUser = await User.findOne({
-      email: validatedData.email,
-    });
+const generateToken = (userId) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error(
+      "JWT_SECRET is missing from environment variables"
+    );
+  }
+
+  return jwt.sign(
+    {
+      id: userId,
+    },
+
+    process.env.JWT_SECRET,
+
+    {
+      expiresIn: "7d",
+    }
+  );
+};
+
+/*
+|--------------------------------------------------------------------------
+| Format Safe User Response
+|--------------------------------------------------------------------------
+*/
+
+const sanitizeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  avatar: user.avatar || "",
+  createdAt: user.createdAt,
+});
+
+/*
+|--------------------------------------------------------------------------
+| Register User
+|--------------------------------------------------------------------------
+| POST /api/auth/register
+|--------------------------------------------------------------------------
+*/
+
+export const registerUser = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    /*
+    |--------------------------------------------------------------------------
+    | Validate Request Body
+    |--------------------------------------------------------------------------
+    */
+
+    const validatedData =
+      registerSchema.parse(req.body);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normalize Email
+    |--------------------------------------------------------------------------
+    */
+
+    const normalizedEmail =
+      validatedData.email
+        .trim()
+        .toLowerCase();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check Existing User
+    |--------------------------------------------------------------------------
+    */
+
+    const existingUser =
+      await User.findOne({
+        email: normalizedEmail,
+      });
 
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
-        message: "User already exists",
+        message:
+          "An account with this email already exists.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      validatedData.password,
-      10
-    );
+    /*
+    |--------------------------------------------------------------------------
+    | Hash Password
+    |--------------------------------------------------------------------------
+    */
+
+    const hashedPassword =
+      await bcrypt.hash(
+        validatedData.password,
+        10
+      );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create User
+    |--------------------------------------------------------------------------
+    */
 
     const user = await User.create({
-      ...validatedData,
+      name: validatedData.name.trim(),
+
+      email: normalizedEmail,
+
       password: hashedPassword,
     });
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | Generate JWT
+    |--------------------------------------------------------------------------
+    */
+
+    const token = generateToken(
+      user._id
     );
 
-    res.status(201).json({
+    /*
+    |--------------------------------------------------------------------------
+    | Success Response
+    |--------------------------------------------------------------------------
+    */
+
+    return res.status(201).json({
       success: true,
+
+      message:
+        "Account created successfully.",
+
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+
+      user: sanitizeUser(user),
     });
   } catch (error) {
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Errors
+    |--------------------------------------------------------------------------
+    */
+
     if (error instanceof ZodError) {
       return res.status(400).json({
         success: false,
-        message: error.errors[0].message,
+        message:
+          error.errors?.[0]?.message ||
+          "Invalid registration data.",
       });
     }
-    next(error);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mongo Duplicate Key
+    |--------------------------------------------------------------------------
+    */
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Email already registered.",
+      });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Unexpected Errors
+    |--------------------------------------------------------------------------
+    */
+
+    console.error(
+      "Register error:",
+      error
+    );
+
+    return next(error);
   }
 };
 
-export const loginUser = async (req, res, next) => {
+/*
+|--------------------------------------------------------------------------
+| Login User
+|--------------------------------------------------------------------------
+| POST /api/auth/login
+|--------------------------------------------------------------------------
+*/
+
+export const loginUser = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const validatedData = loginSchema.parse(req.body);
+    /*
+    |--------------------------------------------------------------------------
+    | Validate Request Body
+    |--------------------------------------------------------------------------
+    */
+
+    const validatedData =
+      loginSchema.parse(req.body);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normalize Email
+    |--------------------------------------------------------------------------
+    */
+
+    const normalizedEmail =
+      validatedData.email
+        .trim()
+        .toLowerCase();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Find User
+    |--------------------------------------------------------------------------
+    */
 
     const user = await User.findOne({
-      email: validatedData.email,
+      email: normalizedEmail,
     });
 
     if (!user) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message:
+          "Invalid email or password.",
       });
     }
 
-    const isPasswordCorrect = await bcrypt.compare(
-      validatedData.password,
-      user.password
-    );
+    /*
+    |--------------------------------------------------------------------------
+    | Compare Password
+    |--------------------------------------------------------------------------
+    */
+
+    const isPasswordCorrect =
+      await bcrypt.compare(
+        validatedData.password,
+        user.password
+      );
 
     if (!isPasswordCorrect) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message:
+          "Invalid email or password.",
       });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | Generate Token
+    |--------------------------------------------------------------------------
+    */
+
+    const token = generateToken(
+      user._id
     );
 
-    res.json({
+    /*
+    |--------------------------------------------------------------------------
+    | Success Response
+    |--------------------------------------------------------------------------
+    */
+
+    return res.status(200).json({
       success: true,
+
+      message:
+        "Login successful.",
+
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+
+      user: sanitizeUser(user),
     });
   } catch (error) {
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Errors
+    |--------------------------------------------------------------------------
+    */
+
     if (error instanceof ZodError) {
       return res.status(400).json({
         success: false,
-        message: error.errors[0].message,
+        message:
+          error.errors?.[0]?.message ||
+          "Invalid login credentials.",
       });
     }
-    next(error);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Unexpected Errors
+    |--------------------------------------------------------------------------
+    */
+
+    console.error(
+      "Login error:",
+      error
+    );
+
+    return next(error);
   }
 };
 
-export const getAllUsers = async (req, res, next) => {
+/*
+|--------------------------------------------------------------------------
+| Get Current User
+|--------------------------------------------------------------------------
+| GET /api/auth/me
+|--------------------------------------------------------------------------
+*/
+
+export const getCurrentUser = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const users = await User.find({}).select("name email avatar").lean();
-    res.status(200).json(users);
+    const user = await User.findById(
+      req.user.id
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: sanitizeUser(user),
+    });
   } catch (error) {
-    next(error);
+    console.error(
+      "Get current user error:",
+      error
+    );
+
+    return next(error);
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Get All Users
+|--------------------------------------------------------------------------
+| Used for:
+| - assignee dropdowns
+| - mentions
+| - workspace invites
+|--------------------------------------------------------------------------
+*/
+
+export const getAllUsers = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const users = await User.find({})
+      .select(
+        "name email avatar createdAt"
+      )
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error(
+      "Get users error:",
+      error
+    );
+
+    return next(error);
   }
 };
