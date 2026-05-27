@@ -6,7 +6,6 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import api from "../lib/axios";
 import socket from "../socket";
 
-import Sidebar from "../components/Sidebar";
 import ChatPanel from "../components/chat/ChatPanel";
 import ActivityPanel from "../components/ActivityPanel";
 import TaskModal from "../components/board/TaskModal";

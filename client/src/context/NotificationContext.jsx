@@ -11,16 +11,20 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [toasts, setToasts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Fetch notifications initially
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
     try {
       const data = await notificationService.getNotifications();
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (err) {
       console.error("Failed to load notifications:", err.message);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
@@ -34,6 +38,8 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   const markAsRead = async (id) => {
+    const target = notifications.find((n) => n._id === id);
+    if (!target || target.read) return;
     try {
       await notificationService.markAsRead(id);
       setNotifications((prev) =>
@@ -102,6 +108,7 @@ export const NotificationProvider = ({ children }) => {
       value={{
         notifications,
         unreadCount,
+        loading,
         toasts,
         fetchNotifications,
         markAsRead,

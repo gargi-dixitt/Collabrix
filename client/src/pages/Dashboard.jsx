@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../lib/axios";
-import Sidebar from "../components/Sidebar";
 import Skeleton from "../components/ui/Skeleton";
 import NotificationBell from "../components/notifications/NotificationBell";
 
@@ -16,18 +15,6 @@ const Dashboard = () => {
   const [error, setError] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-
-  const fetchWorkspaces = async () => {
-    try {
-      const res = await api.get("/workspaces");
-      setWorkspaces(res.data);
-    } catch (err) {
-      console.error("Failed to load workspaces:", err.message);
-      setError("Could not load workspaces. Please refresh.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const createWorkspace = async () => {
     if (!workspaceName.trim()) return;
@@ -46,7 +33,30 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchWorkspaces();
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const res = await api.get("/workspaces");
+        if (mounted) {
+          setWorkspaces(res.data);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error("Failed to load workspaces:", err.message);
+          setError("Could not load workspaces. Please refresh.");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const greeting = () => {
@@ -57,12 +67,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex bg-black text-white min-h-screen">
-      <Sidebar />
-
-      <div className="flex-1 p-10 overflow-y-auto">
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header with Greeting + Notification Bell */}
-        <div className="flex justify-between items-start mb-8 border-b border-zinc-900 pb-6 max-w-4xl">
+        <div className="mb-8 flex items-start justify-between border-b border-zinc-900 pb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl">👋</span>
@@ -70,7 +78,7 @@ const Dashboard = () => {
                 {greeting()}, {user.name || "there"}
               </h1>
             </div>
-            <p className="text-zinc-550 text-xs font-mono">Select a workspace or build a new engineering hub.</p>
+            <p className="text-zinc-500 text-xs font-mono">Pick a workspace to enter, or create one to get your team started.</p>
           </div>
           <div>
             <NotificationBell />
@@ -78,7 +86,7 @@ const Dashboard = () => {
         </div>
 
         {/* Main Workspaces Layout */}
-        <div className="max-w-4xl flex flex-col gap-8">
+        <div className="flex flex-col gap-8">
           {/* Create workspace */}
           <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -155,7 +163,10 @@ const Dashboard = () => {
                   <WorkspaceCard
                     key={workspace._id}
                     workspace={workspace}
-                    onClick={() => navigate(`/workspace/${workspace._id}`)}
+                    onClick={() => {
+                      localStorage.setItem("activeWorkspaceId", workspace._id);
+                      navigate(`/workspace/${workspace._id}/dashboard`);
+                    }}
                     colorIndex={idx}
                   />
                 ))}

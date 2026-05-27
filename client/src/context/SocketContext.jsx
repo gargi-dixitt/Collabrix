@@ -1,71 +1,74 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
+import socket from "../socket";
 
 const SocketContext = createContext();
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:4000";
-
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
-  const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setConnected(false);
-      }
+    const userId = user?.id || user?._id;
+
+    if (!userId) {
+      socket.disconnect();
+      setConnected(false);
+      setReconnecting(false);
       return;
     }
 
-    const newSocket = io(SOCKET_URL, {
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      query: { userId: user.id || user._id },
-    });
+    socket.io.opts.query = {
+      ...(socket.io.opts.query || {}),
+      userId,
+    };
 
-    newSocket.on("connect", () => {
-      console.log("[Socket] Connected:", newSocket.id);
+    const onConnect = () => {
       setConnected(true);
       setReconnecting(false);
-    });
+    };
 
-    newSocket.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected:", reason);
+    const onDisconnect = (reason) => {
       setConnected(false);
       if (reason === "io server disconnect" || reason === "io client disconnect") {
         setReconnecting(false);
       } else {
         setReconnecting(true);
       }
-    });
+    };
 
-    newSocket.on("reconnect_attempt", () => {
+    const onReconnectAttempt = () => {
       setReconnecting(true);
-    });
+    };
 
-    newSocket.on("reconnect", () => {
-      console.log("[Socket] Reconnected successfully");
+    const onReconnect = () => {
       setConnected(true);
       setReconnecting(false);
-    });
+    };
 
-    newSocket.on("reconnect_failed", () => {
-      console.error("[Socket] Reconnect failed completely");
+    const onReconnectFailed = () => {
       setReconnecting(false);
-    });
+    };
 
-    setSocket(newSocket);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.io.on("reconnect_attempt", onReconnectAttempt);
+    socket.io.on("reconnect", onReconnect);
+    socket.io.on("reconnect_failed", onReconnectFailed);
+
+    if (!socket.connected) {
+      socket.connect();
+    } else {
+      setConnected(true);
+    }
 
     return () => {
-      newSocket.disconnect();
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.io.off("reconnect_attempt", onReconnectAttempt);
+      socket.io.off("reconnect", onReconnect);
+      socket.io.off("reconnect_failed", onReconnectFailed);
     };
   }, [user]);
 

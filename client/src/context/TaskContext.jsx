@@ -2,12 +2,14 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { taskService } from "../services/task.service";
 import { useSocket } from "./SocketContext";
 import { useWorkspace } from "./WorkspaceContext";
+import { useAuth } from "./AuthContext";
 
 const TaskContext = createContext();
 
 export const TaskProvider = ({ children }) => {
   const { activeWorkspaceId } = useWorkspace();
   const { socket } = useSocket();
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -121,13 +123,13 @@ export const TaskProvider = ({ children }) => {
       if (assigneeFilter === "unassigned") {
         matchesAssignee = !task.assignee;
       } else if (assigneeFilter === "me") {
-        const userId = socket?.query?.userId || "";
+        const userId = user?.id || user?._id || "";
         matchesAssignee = task.assignee === userId || task.assignee?._id === userId;
       }
 
       return matchesSearch && matchesPriority && matchesAssignee;
     });
-  }, [tasks, searchQuery, priorityFilter, assigneeFilter, socket]);
+  }, [tasks, searchQuery, priorityFilter, assigneeFilter, user]);
 
   return (
     <TaskContext.Provider

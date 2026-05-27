@@ -8,6 +8,7 @@ export default function Notifications() {
   const {
     notifications,
     unreadCount,
+    loading,
     markAsRead,
     markAllAsRead,
   } = useNotifications();
@@ -50,7 +51,12 @@ export default function Notifications() {
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {notifications.length === 0 ? (
+        {loading ? (
+          <div className="bg-slate-950/60 border border-slate-900 rounded-3xl p-16 text-center">
+            <div className="mx-auto mb-4 h-7 w-7 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+            <p className="text-xs text-slate-500 font-mono">Loading notifications...</p>
+          </div>
+        ) : notifications.length === 0 ? (
           <div className="bg-slate-950/60 border border-slate-900 rounded-3xl p-16 text-center">
             <span className="text-4xl block mb-3">🔔</span>
             <h3 className="text-sm font-bold text-slate-350">All caught up!</h3>

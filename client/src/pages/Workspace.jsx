@@ -3,7 +3,6 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 
 import api from "../lib/axios";
 import socket from "../socket";
-import Sidebar from "../components/Sidebar";
 import MemberPanel from "../components/workspace/MemberPanel";
 import Avatar from "../components/ui/Avatar";
 import NotificationBell from "../components/notifications/NotificationBell";

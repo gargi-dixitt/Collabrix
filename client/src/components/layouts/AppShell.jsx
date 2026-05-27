@@ -1,8 +1,9 @@
 import React, { Component } from "react";
-import { Outlet, useNavigate, Link } from "react-router-dom";
+import { Outlet, useNavigate, useParams } from "react-router-dom";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import Topbar from "./Topbar";
 import { useNotifications } from "../../context/NotificationContext";
+import { useWorkspace } from "../../context/WorkspaceContext";
 
 // --- React Error Boundary Catching Unexpected UI Crashes ---
 class ErrorBoundary extends Component {
@@ -48,8 +49,16 @@ class ErrorBoundary extends Component {
 
 // --- AppShell Component ---
 export function AppShellContent() {
+  const { id: workspaceId } = useParams();
   const { toasts } = useNotifications();
+  const { activeWorkspaceId, switchWorkspace } = useWorkspace();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (workspaceId && workspaceId !== activeWorkspaceId) {
+      switchWorkspace(workspaceId);
+    }
+  }, [workspaceId, activeWorkspaceId, switchWorkspace]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 font-sans">
