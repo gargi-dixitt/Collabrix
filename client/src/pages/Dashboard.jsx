@@ -82,108 +82,208 @@ const Dashboard = () => {
     return "Good evening";
   };
 
+  const [lastTask, setLastTask] = useState(null);
+
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("lastActiveTask");
+      if (t) setLastTask(JSON.parse(t));
+    } catch (e) {
+      console.warn("Failed to load last task:", e.message);
+    }
+  }, []);
+
   return (
     <div className="flex bg-black text-white min-h-screen">
       <Sidebar />
 
       <div className="flex-1 p-10 overflow-y-auto">
         {/* Personalized greeting */}
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-2xl">👋</span>
             <h1 className="text-3xl font-extrabold tracking-tight">
               {greeting()}, <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">{user.name || "there"}</span>
             </h1>
           </div>
-          <p className="text-zinc-500 text-sm">Your collaborative workspace is ready. Let's build something.</p>
+          <p className="text-zinc-500 text-sm font-sans">Your collaborative workspace is ready. Let's build something.</p>
 
           {/* Live workspace pulse ticker */}
-          <div className="mt-4 inline-flex items-center gap-2 bg-zinc-950/60 border border-zinc-900 rounded-full px-4 py-2 text-xs">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse flex-shrink-0" />
+          <div className="mt-4 inline-flex items-center gap-2.5 bg-zinc-950/60 border border-zinc-900 rounded-full px-4 py-2 text-xs">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse flex-shrink-0" />
             <span className="text-zinc-400 font-mono transition-all duration-500 ease-in-out">
               {PULSE_MESSAGES[pulseIdx]}
             </span>
           </div>
         </div>
 
-        {/* Create workspace */}
-        <div className="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-6 mb-10 max-w-2xl">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-base">🏗️</span>
-            <h2 className="text-sm font-extrabold text-zinc-300 uppercase tracking-wider">New Workspace</h2>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="e.g. Hackathon 2025, Startup MVP, Client Project..."
-              value={workspaceName}
-              onChange={(e) => setWorkspaceName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createWorkspace()}
-              className="flex-1 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-5 py-3.5 outline-none focus:border-zinc-700 transition text-sm text-white placeholder-zinc-600"
-            />
+        {/* Jump Back In & Active Task Card */}
+        {lastTask && (
+          <div className="bg-gradient-to-r from-zinc-950 to-zinc-900/40 border border-zinc-800/80 hover:border-zinc-700 rounded-2xl p-5 mb-8 max-w-4xl flex items-center justify-between group transition duration-300">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-violet-950/40 text-violet-400 border border-violet-900/30 flex items-center justify-center text-base select-none group-hover:scale-105 transition">
+                ⚡
+              </div>
+              <div>
+                <p className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider font-mono">Jump Back In</p>
+                <h3 className="text-sm font-bold text-white mt-0.5 group-hover:text-violet-300 transition">{lastTask.taskTitle}</h3>
+                <p className="text-[9px] text-zinc-600 font-mono mt-0.5">Project: {lastTask.projectId.slice(-6)}</p>
+              </div>
+            </div>
             <button
-              onClick={createWorkspace}
-              disabled={creating || !workspaceName.trim()}
-              className="bg-white text-black px-6 py-3.5 sm:py-0 rounded-xl font-bold hover:bg-zinc-100 transition disabled:opacity-50 text-sm whitespace-nowrap"
+              onClick={() => navigate(`/project/${lastTask.projectId}?task=${lastTask.taskId}`)}
+              className="bg-white text-black hover:bg-zinc-200 text-xs font-bold px-4 py-2 rounded-xl transition"
             >
-              {creating ? "Creating..." : "Create Workspace"}
+              Open Task →
             </button>
           </div>
-          {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
-        </div>
-
-        {/* Workspaces */}
-        {loading ? (
-          <div className="flex items-center gap-3 text-zinc-500">
-            <span className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
-            <span className="text-sm">Loading workspaces...</span>
-          </div>
-        ) : workspaces.length === 0 ? (
-          <div className="max-w-2xl bg-zinc-950 border border-zinc-900 rounded-3xl p-12 text-center">
-            <span className="text-4xl block mb-4">🚀</span>
-            <h3 className="text-lg font-bold text-zinc-300 mb-2">Start your first workspace</h3>
-            <p className="text-zinc-500 text-sm leading-relaxed max-w-sm mx-auto">
-              A workspace is where your team collaborates. Create one above, then invite teammates, generate sprints with AI, and ship faster.
-            </p>
-            <div className="mt-6 grid grid-cols-3 gap-3 text-center max-w-xs mx-auto">
-              {[["✨", "AI Sprints"], ["⚡", "Realtime"], ["💬", "Team Chat"]].map(([icon, label]) => (
-                <div key={label} className="bg-zinc-900/60 border border-zinc-850 rounded-xl py-3 px-2">
-                  <span className="block text-xl mb-1">{icon}</span>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-extrabold text-zinc-400 uppercase tracking-wider">
-                Your Workspaces ({workspaces.length})
-              </h2>
-            </div>
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {workspaces.map((workspace, idx) => (
-                <WorkspaceCard
-                  key={workspace._id}
-                  workspace={workspace}
-                  onClick={() => navigate(`/workspace/${workspace._id}`)}
-                  colorIndex={idx}
-                />
-              ))}
-            </div>
-          </div>
         )}
+
+        {/* Main Dashboard Grid layout */}
+        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl">
+          {/* Workspaces column */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            {/* Create workspace */}
+            <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">🏗️</span>
+                <h2 className="text-xs font-extrabold text-zinc-400 uppercase tracking-wider">New Workspace</h2>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  placeholder="e.g. Hackathon 2025, Startup MVP, Client Project..."
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && createWorkspace()}
+                  className="flex-1 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3 outline-none focus:border-zinc-700 transition text-sm text-white placeholder-zinc-700"
+                />
+                <button
+                  onClick={createWorkspace}
+                  disabled={creating || !workspaceName.trim()}
+                  className="bg-white text-black px-5 py-3 sm:py-0 rounded-xl font-bold hover:bg-zinc-100 transition disabled:opacity-50 text-xs whitespace-nowrap"
+                >
+                  {creating ? "Creating..." : "Create"}
+                </button>
+              </div>
+              {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+            </div>
+
+            {/* Workspaces grid */}
+            {loading ? (
+              <div className="flex items-center gap-3 text-zinc-500 py-6">
+                <span className="w-4 h-4 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
+                <span className="text-xs">Loading workspaces...</span>
+              </div>
+            ) : workspaces.length === 0 ? (
+              <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-10 text-center">
+                <span className="text-3xl block mb-4">🚀</span>
+                <h3 className="text-base font-bold text-zinc-300 mb-2">Start your first workspace</h3>
+                <p className="text-zinc-500 text-xs leading-relaxed max-w-sm mx-auto">
+                  A workspace is where your team collaborates. Create one above, then invite teammates, generate sprints with AI, and ship faster.
+                </p>
+                <div className="mt-6 grid grid-cols-3 gap-3 text-center max-w-xs mx-auto">
+                  {[["✨", "AI Sprints"], ["⚡", "Realtime"], ["💬", "Team Chat"]].map(([icon, label]) => (
+                    <div key={label} className="bg-zinc-900/40 border border-zinc-850 rounded-xl py-3 px-2">
+                      <span className="block text-lg mb-1">{icon}</span>
+                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider mb-4">
+                  Workspaces ({workspaces.length})
+                </h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {workspaces.map((workspace, idx) => (
+                    <WorkspaceCard
+                      key={workspace._id}
+                      workspace={workspace}
+                      onClick={() => navigate(`/workspace/${workspace._id}`)}
+                      colorIndex={idx}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Teammate Pulse Sidebar */}
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            <div className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-5 hover:border-zinc-800 transition">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-900">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">⚡</span>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400">Teammate Pulse</h3>
+                </div>
+                <span className="flex items-center gap-1 text-[9px] font-mono text-emerald-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  active
+                </span>
+              </div>
+
+              {/* Teammates List */}
+              <div className="flex flex-col gap-3.5">
+                {[
+                  { name: "Aryan", role: "Tech Lead", status: "Active in chat", avatar: "A", active: true },
+                  { name: "Bhoomi", role: "Frontend Dev", status: "Reviewing tasks", avatar: "B", active: true },
+                  { name: "Gemini Copilot", role: "AI Planner", status: "Ready to sequence", avatar: "✨", active: false },
+                ].map((peer, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-extrabold text-zinc-300 relative">
+                        {peer.avatar}
+                        {peer.active && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-black" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-200">{peer.name}</h4>
+                        <p className="text-[9px] text-zinc-500 font-mono">{peer.role}</p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-600 bg-zinc-900/60 border border-zinc-850 px-1.5 py-0.5 rounded">
+                      {peer.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Workspace Highlights Ledger */}
+            <div className="bg-zinc-950/40 border border-zinc-900 rounded-3xl p-5 hover:border-zinc-850 transition">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-550 mb-3 select-none">Recent Milestones</h3>
+              <div className="flex flex-col gap-3 font-mono text-[9px]">
+                {[
+                  { event: "AI generated food delivery app sprint", time: "2h ago", icon: "✨" },
+                  { event: "Stripe payment controller test passed", time: "4h ago", icon: "✓" },
+                  { event: "Joined workspace 'Startup MVP'", time: "1d ago", icon: "📨" },
+                ].map((item, index) => (
+                  <div key={index} className="flex items-start gap-2 text-zinc-500">
+                    <span className="text-[10px] select-none">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="leading-snug text-zinc-400">{item.event}</p>
+                      <span className="text-zinc-650 text-[8px]">{item.time}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 const ACCENT_COLORS = [
-  "from-violet-900/30 to-indigo-900/20 border-violet-800/30",
-  "from-emerald-900/20 to-teal-900/20 border-emerald-800/30",
-  "from-amber-900/20 to-orange-900/20 border-amber-800/30",
-  "from-blue-900/20 to-cyan-900/20 border-blue-800/30",
-  "from-rose-900/20 to-pink-900/20 border-rose-800/30",
+  "from-violet-900/30 to-indigo-900/20 border-violet-800/30 hover:border-violet-750/50",
+  "from-emerald-900/20 to-teal-900/20 border-emerald-800/30 hover:border-emerald-750/50",
+  "from-amber-900/20 to-orange-900/20 border-amber-800/30 hover:border-amber-750/50",
+  "from-blue-900/20 to-cyan-900/20 border-blue-800/30 hover:border-blue-750/50",
+  "from-rose-900/20 to-pink-900/20 border-rose-800/30 hover:border-rose-750/50",
 ];
 
 function WorkspaceCard({ workspace, onClick, colorIndex }) {
@@ -193,38 +293,37 @@ function WorkspaceCard({ workspace, onClick, colorIndex }) {
   return (
     <div
       onClick={onClick}
-      className={`group relative bg-gradient-to-br ${accent} border rounded-2xl p-6 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between min-h-[160px]`}
+      className={`group relative bg-gradient-to-br ${accent} border rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg hover:shadow-black/40 flex flex-col justify-between min-h-[140px]`}
     >
       <div>
         <div className="flex justify-between items-start mb-2">
-          <h2 className="text-base font-extrabold text-white tracking-tight leading-tight group-hover:text-white transition">
+          <h2 className="text-sm font-extrabold text-zinc-200 group-hover:text-white transition tracking-tight leading-tight">
             {workspace.name}
           </h2>
           <span className="text-zinc-500 group-hover:text-zinc-300 transition text-sm flex-shrink-0 ml-2">→</span>
         </div>
-        <p className="text-zinc-500 text-[10px] font-mono">
+        <p className="text-zinc-650 text-[9px] font-mono">
           ID: {workspace._id.slice(-6)}
         </p>
       </div>
 
-      <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/5">
-        <div className="flex items-center gap-1.5">
-          {/* Fake member dots for visual richness */}
-          {Array.from({ length: Math.min(memberCount, 4) }).map((_, i) => (
+      <div className="flex items-center justify-between pt-3 mt-4 border-t border-white/5">
+        <div className="flex items-center gap-1 select-none">
+          {Array.from({ length: Math.min(memberCount, 3) }).map((_, i) => (
             <span
               key={i}
-              className="w-5 h-5 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center text-[8px] font-bold text-zinc-400"
+              className="w-4 h-4 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[7px] font-extrabold text-zinc-400"
             >
               {String.fromCharCode(65 + i)}
             </span>
           ))}
-          {memberCount > 4 && (
-            <span className="text-[9px] text-zinc-500 font-mono">+{memberCount - 4}</span>
+          {memberCount > 3 && (
+            <span className="text-[8px] text-zinc-600 font-mono">+{memberCount - 3}</span>
           )}
         </div>
-        <span className="text-[10px] text-zinc-500 font-mono flex items-center gap-1">
-          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-          {memberCount} member{memberCount !== 1 ? "s" : ""}
+        <span className="text-[9px] text-zinc-550 font-mono flex items-center gap-1">
+          <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
+          {memberCount} teammate{memberCount !== 1 ? "s" : ""}
         </span>
       </div>
     </div>

@@ -266,7 +266,14 @@ const Project = () => {
 
   // ─── Socket setup ──────────────────────────────────────────────────────
   useEffect(() => {
-    fetchTasks().then(() => setLoading(false));
+    fetchTasks().then(() => {
+      setLoading(false);
+      const params = new URLSearchParams(window.location.search);
+      const taskParam = params.get("task");
+      if (taskParam) {
+        setSelectedTaskId(taskParam);
+      }
+    });
 
     if (!socket.connected) socket.connect();
     socket.emit("join-project", { projectId: id, user });
@@ -436,7 +443,15 @@ const Project = () => {
                 <Draggable key={task._id} draggableId={task._id} index={index}>
                   {(provided, snapshot) => (
                     <div
-                      onClick={() => !task._id.startsWith("temp-") && setSelectedTaskId(task._id)}
+                      onClick={() => {
+                        if (!task._id.startsWith("temp-")) {
+                          setSelectedTaskId(task._id);
+                          localStorage.setItem(
+                            "lastActiveTask",
+                            JSON.stringify({ taskId: task._id, taskTitle: task.title, projectId: id })
+                          );
+                        }
+                      }}
                       className={`bg-zinc-900 border rounded-2xl p-4 transition-all duration-200 group cursor-pointer active:cursor-grabbing ${
                         snapshot.isDragging
                           ? "border-violet-600/60 shadow-xl shadow-violet-900/20 rotate-1 scale-105 ring-1 ring-violet-600/30"
