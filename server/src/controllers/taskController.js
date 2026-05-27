@@ -1,5 +1,7 @@
 import Task from "../models/Task.js";
 import Comment from "../models/Comment.js";
+import Project from "../models/Project.js";
+import { logPulseEvent } from "../services/pulseService.js";
 
 // Create a new task
 export const createTask = async (req, res, next) => {
@@ -87,14 +89,46 @@ export const updateTaskStatus = async (req, res, next) => {
       }
     }
 
+    const originalTask = await Task.findById(taskId);
+    if (!originalTask) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
     const updated = await Task.findByIdAndUpdate(
       taskId,
       { $set: updates },
       { new: true, runValidators: true }
     ).populate("assignee createdBy", "name email avatar").populate("resources");
 
-    if (!updated) {
-      return res.status(404).json({ success: false, message: "Task not found" });
+    // If status has changed, log a high-fidelity Pulse event
+    if (updates.status && updates.status !== originalTask.status) {
+      try {
+        let wsId = updated.workspace;
+        if (!wsId) {
+          const project = await Project.findById(updated.project);
+          wsId = project?.workspace;
+        }
+
+        if (wsId) {
+          await logPulseEvent({
+            workspaceId: wsId,
+            actorId: req.user?._id,
+            actorName: req.user?.name,
+            type: "task_moved",
+            content: `${req.user?.name} moved task "${updated.title}" to ${updates.status}`,
+            importance: "medium",
+            metadata: {
+              taskId: updated._id,
+              projectId: updated.project,
+              taskTitle: updated.title,
+              columnName: updates.status,
+            },
+            io: req.app.get("io"),
+          });
+        }
+      } catch (pulseErr) {
+        console.error("[TaskPulse] Event logging failed:", pulseErr.message);
+      }
     }
 
     res.status(200).json(updated);

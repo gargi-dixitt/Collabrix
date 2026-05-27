@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Project from "../models/Project.js";
+import { logPulseEvent } from "../services/pulseService.js";
 
 const MAX_RETRIES = 2;
 const TIMEOUT_MS = 12000;
@@ -685,6 +687,24 @@ Rules:
         tasks: parsed.tasks,
       });
 
+      try {
+        const project = await Project.findById(projectId);
+        if (project) {
+          await logPulseEvent({
+            workspaceId: project.workspace,
+            actorId: req.user?._id,
+            actorName: req.user?.name,
+            type: "sprint_generated",
+            content: `${req.user?.name || "AI"} generated a new sprint roadmap for "${decorated.projectType}"`,
+            importance: "high",
+            metadata: { projectId, projectType: decorated.projectType },
+            io: req.app.get("io"),
+          });
+        }
+      } catch (pulseErr) {
+        console.error("[SprintPulse] Event logging failed:", pulseErr.message);
+      }
+
       return res.status(200).json({
         success: true,
         isFallback: false,
@@ -711,6 +731,25 @@ Rules:
   console.error("[Sprint] All retries failed, using keyword fallback. Last error:", lastError?.message);
   const fallback = buildFallbackSprint(prompt);
   const decorated = decorateSprintWithDependencies(fallback);
+
+  try {
+    const project = await Project.findById(projectId);
+    if (project) {
+      await logPulseEvent({
+        workspaceId: project.workspace,
+        actorId: req.user?._id,
+        actorName: req.user?.name,
+        type: "sprint_generated",
+        content: `${req.user?.name || "AI"} generated a fallback sprint roadmap for "${decorated.projectType}"`,
+        importance: "high",
+        metadata: { projectId, projectType: decorated.projectType },
+        io: req.app.get("io"),
+      });
+    }
+  } catch (pulseErr) {
+    console.error("[SprintPulse] Fallback event logging failed:", pulseErr.message);
+  }
+
   return res.status(200).json({
     success: true,
     isFallback: true,

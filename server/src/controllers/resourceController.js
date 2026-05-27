@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import Resource from "../models/Resource.js";
 import Task from "../models/Task.js";
 import Message from "../models/Message.js";
+import { logPulseEvent } from "../services/pulseService.js";
 
 // Light keyword-based fallback for tag suggestion
 function suggestOfflineMetadata(title, description, content = "") {
@@ -266,6 +267,25 @@ export const createResource = async (req, res, next) => {
     const io = req.app.get("io");
     if (io) {
       io.to(`workspace:${workspaceId}`).emit("resource:created", populated);
+    }
+
+    try {
+      await logPulseEvent({
+        workspaceId,
+        actorId: req.user?._id,
+        actorName: req.user?.name,
+        type: "resource_shared",
+        content: `${req.user?.name} shared a resource: "${populated.title}"`,
+        importance: "medium",
+        metadata: {
+          resourceId: populated._id,
+          resourceTitle: populated.title,
+          projectId: populated.project,
+        },
+        io,
+      });
+    } catch (pulseErr) {
+      console.error("[ResourcePulse] Event logging failed:", pulseErr.message);
     }
 
     // If published to workspace feed, create a structured persistent chat message announcement
