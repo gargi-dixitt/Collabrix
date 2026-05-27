@@ -4,6 +4,7 @@ import Resource from "../models/Resource.js";
 import Task from "../models/Task.js";
 import Message from "../models/Message.js";
 import { logPulseEvent } from "../services/pulseService.js";
+import AiFeedback from "../models/AiFeedback.js";
 
 // Light keyword-based fallback for tag suggestion
 function suggestOfflineMetadata(title, description, content = "") {
@@ -484,7 +485,7 @@ export const toggleLike = async (req, res, next) => {
 export const addComment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { text } = req.body;
+    const { text, commentType = "note", solvedIndicator = false } = req.body;
 
     if (!text?.trim()) return res.status(400).json({ success: false, message: "Comment text is required" });
 
@@ -495,7 +496,22 @@ export const addComment = async (req, res, next) => {
       user: req.user._id,
       userName: req.user.name,
       text: text.trim(),
+      type: commentType,
+      solvedIndicator: !!solvedIndicator,
     });
+
+    // Populate Persistent Engineering Context Memory
+    if (solvedIndicator) {
+      resource.usageMetadata.push({
+        text: `Helped resolve blocker: "${text.trim().slice(0, 40)}${text.trim().length > 40 ? "..." : ""}"`,
+        contextType: "fix",
+      });
+    } else if (commentType === "caveat" || commentType === "warning") {
+      resource.usageMetadata.push({
+        text: `Technical caveat flagged by ${req.user.name}`,
+        contextType: "other",
+      });
+    }
 
     await resource.save();
 
@@ -561,6 +577,11 @@ export const getAiRecommendations = async (req, res, next) => {
     const { workspaceId } = req.params;
     const { taskTitle, milestone, techStack } = req.query;
 
+    const recentFeedback = await AiFeedback.find({ workspace: workspaceId })
+      .sort({ createdAt: -1 })
+      .limit(15)
+      .lean();
+
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "your_gemini_api_key_here") {
       // Offline fallback recommendation list
       return res.status(200).json({
@@ -616,6 +637,14 @@ Tech Stack: "${techStack || "React, Node, Express, MongoDB, Socket.io"}"
 Reference of already saved team resources:
 ${JSON.stringify(saved)}
 
+Learning loops feedback logs (user actions on past recommendations):
+${JSON.stringify(recentFeedback)}
+
+IMPORTANT AI REASONING RULE:
+- Avoid recommending things that were marked as "ignored" in the feedback logs.
+- Prioritize and suggest similar items to those that were "saved" or "attached" to tasks.
+- If they "resolved" an issue, suggest advanced follow-ups or deployment checklists.
+
 Generate exactly 3 resources that would help this team solve problems faster. Be realistic and practical. Return ONLY a raw JSON array of objects (no markdown, no backticks):
 [
   {
@@ -657,5 +686,65 @@ Generate exactly 3 resources that would help this team solve problems faster. Be
         }
       ],
     });
+  }
+};
+
+// Track AI Recommendation Feedback Loop
+export const trackFeedback = async (req, res, next) => {
+  try {
+    const { workspaceId, resourceTitle, resourceDomain, action, context } = req.body;
+    if (!workspaceId || !resourceTitle || !action) {
+      return res.status(400).json({ success: false, message: "Missing required tracking attributes" });
+    }
+
+    const feedback = await AiFeedback.create({
+      user: req.user._id,
+      workspace: workspaceId,
+      resourceTitle,
+      resourceDomain,
+      action,
+      context: context || {},
+    });
+
+    res.status(200).json({ success: true, feedback });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Track resource views and emit presence to workspace
+export const trackView = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const resource = await Resource.findById(id);
+    if (!resource) return res.status(404).json({ success: false, message: "Resource not found" });
+
+    // Track viewed list
+    if (!resource.viewedBy.includes(userId)) {
+      resource.viewedBy.push(userId);
+    }
+    resource.views = (resource.views || 0) + 1;
+    await resource.save();
+
+    const populated = await Resource.findById(id)
+      .populate("createdBy", "name email avatar")
+      .populate("tasks", "title status")
+      .lean();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`workspace:${resource.workspace}`).emit("resource:viewed", {
+        resourceId: id,
+        userId,
+        userName: req.user.name,
+        views: populated.views,
+      });
+    }
+
+    res.status(200).json(populated);
+  } catch (err) {
+    next(err);
   }
 };

@@ -5,6 +5,14 @@ const resourceCommentSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     userName: { type: String, required: true },
     text: { type: String, required: true, trim: true },
+    type: { type: String, enum: ["note", "warning", "caveat", "solution"], default: "note" },
+    solvedIndicator: { type: Boolean, default: false },
+    reactions: [
+      {
+        emoji: { type: String },
+        users: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      }
+    ],
     createdAt: { type: Date, default: Date.now },
   },
   { _id: true }
@@ -95,6 +103,22 @@ const resourceSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    usageMetadata: [
+      {
+        text: { type: String, required: true },
+        contextType: { type: String, enum: ["sprint", "task", "fix", "deploy", "other"], default: "other" },
+      }
+    ],
+    views: {
+      type: Number,
+      default: 0,
+    },
+    viewedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }
+    ],
     likes: [
       {
         type: mongoose.Schema.Types.ObjectId,

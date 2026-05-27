@@ -11,6 +11,7 @@ import aiRoutes from "./routes/ai.js";
 import notificationRoutes from "./routes/notifications.js";
 import resourceRoutes from "./routes/resources.js";
 import pulseRoutes from "./routes/pulse.js";
+import collectionRoutes from "./routes/collections.js";
 
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -41,6 +42,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/pulse", pulseRoutes);
+app.use("/api/collections", collectionRoutes);
 
 // 404 handler for any unmatched routes
 app.use((_req, res) => {
