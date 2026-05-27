@@ -6,11 +6,15 @@ import {
 } from "../controllers/projectController.js";
 
 import authMiddleware from "../middleware/auth.js";
+import {
+  requireWorkspaceReadByParam,
+  requireWorkspaceWriteByBody,
+} from "../middleware/workspaceAccess.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, createProject);
+router.post("/", authMiddleware, requireWorkspaceWriteByBody("workspaceId"), createProject);
 
-router.get("/:workspaceId", authMiddleware, getProjects);
+router.get("/:workspaceId", authMiddleware, requireWorkspaceReadByParam("workspaceId"), getProjects);
 
 export default router;

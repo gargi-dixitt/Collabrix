@@ -7,6 +7,7 @@ const ROLE_BADGES = {
   owner: "bg-violet-950/50 text-violet-300 border-violet-800/40",
   admin: "bg-blue-950/40 text-blue-300 border-blue-800/40",
   member: "bg-zinc-900 text-zinc-400 border-zinc-800",
+  viewer: "bg-amber-950/40 text-amber-300 border-amber-800/40",
 };
 
 export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds = [] }) {
@@ -17,11 +18,14 @@ export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds 
   const [generatingLink, setGeneratingLink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [removing, setRemoving] = useState(null);
+  const [inviteRole, setInviteRole] = useState("member");
+  const [pendingInvites, setPendingInvites] = useState([]);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
     fetchMembers();
+    fetchInvites();
   }, [workspaceId]);
 
   const fetchMembers = async () => {
@@ -36,16 +40,48 @@ export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds 
     }
   };
 
+  const fetchInvites = async () => {
+    try {
+      const res = await api.get(`/workspaces/${workspaceId}/invites`);
+      setPendingInvites(res.data || []);
+    } catch (err) {
+      console.error("Failed to load pending invites:", err.message);
+    }
+  };
+
   const generateInviteLink = async () => {
     setGeneratingLink(true);
     try {
-      const res = await api.post(`/workspaces/${workspaceId}/invite`);
+      const res = await api.post(`/workspaces/${workspaceId}/invite`, { role: inviteRole });
       setInviteToken(res.data.token);
       setInviteExpires(res.data.expiresAt);
+      fetchInvites();
     } catch (err) {
       console.error("Failed to generate invite:", err.message);
     } finally {
       setGeneratingLink(false);
+    }
+  };
+
+  const resendInvite = async (token) => {
+    try {
+      await api.post(`/workspaces/${workspaceId}/invite/${token}/resend`);
+      fetchInvites();
+    } catch (err) {
+      console.error("Failed to resend invite:", err.message);
+    }
+  };
+
+  const revokeInvite = async (token) => {
+    try {
+      await api.delete(`/workspaces/${workspaceId}/invite/${token}`);
+      if (inviteToken === token) {
+        setInviteToken("");
+        setInviteExpires(null);
+      }
+      fetchInvites();
+    } catch (err) {
+      console.error("Failed to revoke invite:", err.message);
     }
   };
 
@@ -86,7 +122,7 @@ export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds 
         </div>
         <button
           onClick={generateInviteLink}
-          disabled={generatingLink}
+          disabled={generatingLink || !canManage}
           className="text-[10px] font-bold text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 rounded-xl transition flex items-center gap-1.5"
         >
           {generatingLink ? (
@@ -98,6 +134,20 @@ export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds 
       </div>
 
       {/* Invite link panel */}
+      {canManage && (
+        <div className="px-5 pt-3">
+          <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">Invite role</label>
+          <select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            className="mt-1 w-full bg-zinc-900/60 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 outline-none"
+          >
+            <option value="member">Member</option>
+            <option value="viewer">Viewer (read-only)</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      )}
       {inviteToken && (
         <div className="px-5 py-3 bg-violet-950/20 border-b border-violet-900/20">
           <p className="text-[10px] text-violet-400 font-bold mb-2 flex items-center gap-1.5">
@@ -121,6 +171,31 @@ export default function MemberPanel({ workspaceId, currentUserId, onlineUserIds 
             >
               {copied ? "Copied!" : "Copy"}
             </button>
+          </div>
+        </div>
+      )}
+      {canManage && pendingInvites.length > 0 && (
+        <div className="px-5 py-3 border-b border-zinc-900">
+          <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider mb-2">Pending invites</p>
+          <div className="space-y-2">
+            {pendingInvites.slice(0, 4).map((invite) => (
+              <div key={invite._id} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-400 capitalize">{invite.role}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => resendInvite(invite.token)} className="text-[10px] text-zinc-500 hover:text-zinc-300">
+                      Resend
+                    </button>
+                    <button onClick={() => revokeInvite(invite.token)} className="text-[10px] text-zinc-600 hover:text-red-400">
+                      Revoke
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[9px] text-zinc-600 mt-1">
+                  Expires {invite.expiresAt ? new Date(invite.expiresAt).toLocaleDateString() : "soon"}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}

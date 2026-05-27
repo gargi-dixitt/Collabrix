@@ -2,9 +2,11 @@ import { Server } from "socket.io";
 
 // In-memory presence map: projectId -> Map<socketId, { name, userId }>
 const presence = {};
+const workspacePresence = {};
 
 // Track which project each socket is in (for fast disconnect cleanup)
 const socketToProject = {};
+const socketToWorkspace = {};
 
 const initSockets = (server) => {
   const io = new Server(server, {
@@ -61,10 +63,21 @@ const initSockets = (server) => {
       if (!workspaceId) return;
       socket.join(`workspace:${workspaceId}`);
       if (userId) socket.join(`user:${userId}`);
+      socketToWorkspace[socket.id] = workspaceId;
+      if (!workspacePresence[workspaceId]) workspacePresence[workspaceId] = new Map();
+      workspacePresence[workspaceId].set(socket.id, {
+        userId,
+        name: userName || "Someone",
+      });
+      broadcastWorkspacePresence(io, workspaceId);
     });
 
     socket.on("leave-workspace", ({ workspaceId }) => {
-      if (!workspaceId) socket.leave(`workspace:${workspaceId}`);
+      if (!workspaceId) return;
+      socket.leave(`workspace:${workspaceId}`);
+      removeFromWorkspacePresence(socket.id, workspaceId);
+      broadcastWorkspacePresence(io, workspaceId);
+      delete socketToWorkspace[socket.id];
     });
 
     // ─── Task events ──────────────────────────────────────────────────
@@ -210,6 +223,12 @@ const initSockets = (server) => {
         broadcastPresence(io, projectId);
         delete socketToProject[socket.id];
       }
+      const workspaceId = socketToWorkspace[socket.id];
+      if (workspaceId) {
+        removeFromWorkspacePresence(socket.id, workspaceId);
+        broadcastWorkspacePresence(io, workspaceId);
+        delete socketToWorkspace[socket.id];
+      }
     });
   });
   return io;
@@ -217,7 +236,7 @@ const initSockets = (server) => {
 
 function broadcastPresence(io, projectId) {
   if (!presence[projectId]) return;
-  const users = Array.from(presence[projectId].values()).map((u) => ({ name: u.name }));
+  const users = Array.from(presence[projectId].values()).map((u) => ({ name: u.name, userId: u.userId }));
   io.to(projectId).emit("online-users", users);
 }
 
@@ -226,6 +245,21 @@ function removeFromPresence(socketId, projectId) {
     presence[projectId].delete(socketId);
     if (presence[projectId].size === 0) {
       delete presence[projectId];
+    }
+  }
+}
+
+function broadcastWorkspacePresence(io, workspaceId) {
+  if (!workspacePresence[workspaceId]) return;
+  const users = Array.from(workspacePresence[workspaceId].values()).filter((u) => u.userId);
+  io.to(`workspace:${workspaceId}`).emit("workspace-online-users", users);
+}
+
+function removeFromWorkspacePresence(socketId, workspaceId) {
+  if (workspacePresence[workspaceId]) {
+    workspacePresence[workspaceId].delete(socketId);
+    if (workspacePresence[workspaceId].size === 0) {
+      delete workspacePresence[workspaceId];
     }
   }
 }

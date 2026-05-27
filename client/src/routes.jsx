@@ -10,6 +10,10 @@ import NotFound from "./pages/NotFound";
 import JoinWorkspace from "./pages/JoinWorkspace";
 import ResourceHub from "./pages/ResourceHub";
 import Pulse from "./pages/Pulse";
+import Wiki from "./pages/Wiki";
+import Snippets from "./pages/Snippets";
+import CodeReview from "./pages/CodeReview";
+import Billing from "./pages/Billing";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -61,6 +65,38 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Pulse />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/workspace/:id/wiki",
+    element: (
+      <ProtectedRoute>
+        <Wiki />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/workspace/:id/snippets",
+    element: (
+      <ProtectedRoute>
+        <Snippets />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/workspace/:id/code-review",
+    element: (
+      <ProtectedRoute>
+        <CodeReview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/workspace/:id/billing",
+    element: (
+      <ProtectedRoute>
+        <Billing />
       </ProtectedRoute>
     ),
   },

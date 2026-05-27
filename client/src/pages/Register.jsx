@@ -29,7 +29,13 @@ const Register = () => {
 
     try {
       await register(formData);
-      navigate("/dashboard");
+      const redirectPath = localStorage.getItem("postLoginRedirect");
+      if (redirectPath) {
+        localStorage.removeItem("postLoginRedirect");
+        navigate(redirectPath);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {

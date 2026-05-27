@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import Workspace from "../models/workspace.js";
 import User from "../models/User.js";
+import Project from "../models/Project.js";
+import Message from "../models/Message.js";
 import { logPulseEvent } from "../services/pulseService.js";
 
 // Create workspace — creator becomes owner + first member
@@ -20,6 +22,16 @@ export const createWorkspace = async (req, res, next) => {
       .populate("members.user", "name email")
       .populate("owner", "name email")
       .lean();
+
+    await logPulseEvent({
+      workspaceId: workspace._id,
+      actorId: req.user._id,
+      actorName: req.user.name,
+      type: "workspace_created",
+      content: `${req.user.name} created workspace "${workspace.name}"`,
+      importance: "high",
+      io: req.app.get("io"),
+    });
 
     res.status(201).json(populated);
   } catch (err) {
@@ -63,19 +75,32 @@ export const getWorkspace = async (req, res, next) => {
 // Generate invite link (returns token)
 export const createInviteLink = async (req, res, next) => {
   try {
+    const { role = "member", email = "" } = req.body || {};
     const workspace = await Workspace.findById(req.params.id);
     if (!workspace) return res.status(404).json({ success: false, message: "Workspace not found" });
 
-    const isMember = workspace.isMember(req.user._id);
-    if (!isMember) return res.status(403).json({ success: false, message: "Access denied" });
+    const requesterRole = workspace.getMemberRole(req.user._id);
+    if (!requesterRole || (requesterRole !== "owner" && requesterRole !== "admin")) {
+      return res.status(403).json({ success: false, message: "Only owners and admins can send invites" });
+    }
+
+    const normalizedRole = ["admin", "member", "viewer"].includes(role) ? role : "member";
+    const normalizedEmail = String(email || "").trim().toLowerCase();
 
     const token = crypto.randomBytes(20).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    workspace.invites.push({ token, invitedBy: req.user._id, role: "member", expiresAt });
+    workspace.invites.push({
+      token,
+      invitedBy: req.user._id,
+      role: normalizedRole,
+      email: normalizedEmail || undefined,
+      expiresAt,
+      status: "pending",
+    });
     await workspace.save();
 
-    res.status(200).json({ success: true, token, expiresAt });
+    res.status(200).json({ success: true, token, expiresAt, role: normalizedRole, email: normalizedEmail || null });
   } catch (err) {
     next(err);
   }
@@ -115,6 +140,43 @@ export const joinViaInvite = async (req, res, next) => {
       .populate("owner", "name email")
       .lean();
 
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`workspace:${workspace._id}`).emit("workspace:member-joined", {
+        workspaceId: workspace._id,
+        member: {
+          id: req.user._id,
+          name: req.user.name,
+          role: invite.role || "member",
+        },
+      });
+    }
+
+    await logPulseEvent({
+      workspaceId: workspace._id,
+      actorId: req.user._id,
+      actorName: req.user.name,
+      type: "workspace_created",
+      content: `${req.user.name} joined the workspace`,
+      importance: "medium",
+      metadata: {},
+      io,
+    });
+
+    const workspaceProjects = await Project.find({ workspace: workspace._id }).select("_id");
+    if (workspaceProjects.length > 0) {
+      const systemText = `${req.user.name} joined the workspace as ${invite.role || "member"}.`;
+      await Message.insertMany(
+        workspaceProjects.map((project) => ({
+          project: project._id,
+          sender: null,
+          text: systemText,
+          isSystem: true,
+          reactions: [],
+        }))
+      );
+    }
+
     res.status(200).json({ success: true, workspace: updated });
   } catch (err) {
     next(err);
@@ -134,6 +196,24 @@ export const getMembers = async (req, res, next) => {
     if (!isMember) return res.status(403).json({ success: false, message: "Access denied" });
 
     res.status(200).json(workspace.members);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPendingInvites = async (req, res, next) => {
+  try {
+    const workspace = await Workspace.findById(req.params.id).lean();
+    if (!workspace) return res.status(404).json({ success: false, message: "Workspace not found" });
+
+    const isMember = workspace.members.some((m) => m.user.toString() === req.user._id.toString());
+    if (!isMember) return res.status(403).json({ success: false, message: "Access denied" });
+
+    const invites = (workspace.invites || [])
+      .filter((i) => i.status === "pending" && (!i.expiresAt || new Date(i.expiresAt) > new Date()))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json(invites);
   } catch (err) {
     next(err);
   }
@@ -187,6 +267,59 @@ export const getInviteInfo = async (req, res, next) => {
       role: invite.role,
       expired,
       expiresAt: invite.expiresAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const revokeInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ success: false, message: "Workspace not found" });
+
+    const requesterRole = workspace.getMemberRole(req.user._id);
+    if (!requesterRole || (requesterRole !== "owner" && requesterRole !== "admin")) {
+      return res.status(403).json({ success: false, message: "Only owners and admins can revoke invites" });
+    }
+
+    const invite = workspace.invites.find((i) => i.token === token);
+    if (!invite) return res.status(404).json({ success: false, message: "Invite not found" });
+
+    invite.status = "expired";
+    await workspace.save();
+
+    res.status(200).json({ success: true, message: "Invite revoked" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resendInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ success: false, message: "Workspace not found" });
+
+    const requesterRole = workspace.getMemberRole(req.user._id);
+    if (!requesterRole || (requesterRole !== "owner" && requesterRole !== "admin")) {
+      return res.status(403).json({ success: false, message: "Only owners and admins can resend invites" });
+    }
+
+    const invite = workspace.invites.find((i) => i.token === token);
+    if (!invite) return res.status(404).json({ success: false, message: "Invite not found" });
+
+    invite.status = "pending";
+    invite.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await workspace.save();
+
+    res.status(200).json({
+      success: true,
+      token: invite.token,
+      expiresAt: invite.expiresAt,
+      role: invite.role,
+      email: invite.email || null,
     });
   } catch (err) {
     next(err);

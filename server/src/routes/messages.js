@@ -7,11 +7,16 @@ import {
   getMessages,
   toggleReaction,
 } from "../controllers/messageController.js";
+import {
+  requireMessageReadByParam,
+  requireMessageWriteByBody,
+  requireMessageWriteByParam,
+} from "../middleware/workspaceAccess.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, sendMessage);
-router.get("/:projectId", authMiddleware, getMessages);
-router.put("/:messageId/reaction", authMiddleware, toggleReaction);
+router.post("/", authMiddleware, requireMessageWriteByBody("project"), sendMessage);
+router.get("/:projectId", authMiddleware, requireMessageReadByParam("projectId"), getMessages);
+router.put("/:messageId/reaction", authMiddleware, requireMessageWriteByParam("messageId"), toggleReaction);
 
 export default router;

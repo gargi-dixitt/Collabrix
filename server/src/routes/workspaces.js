@@ -7,6 +7,7 @@ import {
   createInviteLink,
   joinViaInvite,
   getMembers,
+  getPendingInvites,
   removeMember,
   getInviteInfo,
   revokeInvite,
@@ -19,6 +20,7 @@ router.post("/", authMiddleware, createWorkspace);
 router.get("/", authMiddleware, getWorkspaces);
 router.get("/:id", authMiddleware, getWorkspace);
 router.get("/:id/members", authMiddleware, getMembers);
+router.get("/:id/invites", authMiddleware, getPendingInvites);
 router.post("/:id/invite", authMiddleware, createInviteLink);
 router.delete("/:id/invite/:token", authMiddleware, revokeInvite);
 router.post("/:id/invite/:token/resend", authMiddleware, resendInvite);

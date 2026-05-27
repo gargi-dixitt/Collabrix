@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import NotificationBell from "./notifications/NotificationBell";
 import Avatar from "./ui/Avatar";
 
 const Sidebar = () => {
@@ -69,7 +68,7 @@ const Sidebar = () => {
 
       {/* Sidebar container */}
       <div
-        className={`fixed md:sticky top-0 bottom-0 left-0 z-40 w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col h-screen transition-transform duration-300 ease-out md:translate-x-0 ${
+        className={`fixed md:sticky top-0 bottom-0 left-0 z-40 w-64 bg-zinc-950 border-r border-zinc-900/90 flex flex-col h-screen transition-transform duration-300 ease-out md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -161,12 +160,12 @@ const Sidebar = () => {
         {/* Bottom user section */}
         <div className="px-4 pb-5 pt-3 border-t border-zinc-900 flex flex-col gap-3">
           <div className="hidden md:flex items-center justify-between">
-            <span className="text-[10px] text-zinc-600 uppercase font-bold tracking-wider">You</span>
+            <span className="text-[10px] text-zinc-600 uppercase font-bold tracking-wider">Profile</span>
           </div>
 
           {/* User info */}
           {user.name && (
-            <div className="flex items-center gap-3 bg-zinc-900/30 border border-zinc-900 rounded-xl px-3 py-2.5">
+            <div className="flex items-center gap-3 bg-zinc-900/30 border border-zinc-900 rounded-xl px-3 py-2.5 hover:border-zinc-800 transition">
               <Avatar alt={user.name} size="sm" showRing={true} ringColor="border-emerald-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-zinc-200 truncate">{user.name}</p>

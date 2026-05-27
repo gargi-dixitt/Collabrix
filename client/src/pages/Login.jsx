@@ -36,7 +36,13 @@ function Login() {
         JSON.stringify(response.data.user)
       );
 
-      navigate("/dashboard");
+      const redirectPath = localStorage.getItem("postLoginRedirect");
+      if (redirectPath) {
+        localStorage.removeItem("postLoginRedirect");
+        navigate(redirectPath);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       setError(
         error.response?.data?.message || "Login failed"

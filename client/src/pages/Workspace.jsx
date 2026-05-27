@@ -63,9 +63,21 @@ const Workspace = () => {
 
     const onOnlineUsers = (users) => setOnlineUsers(users);
     const onPulseNew = (event) => setPulseEvents((prev) => [event, ...prev].slice(0, 5));
+    const onMemberJoined = ({ member }) => {
+      setPulseEvents((prev) => [
+        {
+          _id: `join-${Date.now()}`,
+          type: "workspace_created",
+          content: `${member?.name || "A teammate"} joined the workspace as ${member?.role || "member"}`,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ].slice(0, 5));
+    };
 
-    socket.on("online-users", onOnlineUsers);
+    socket.on("workspace-online-users", onOnlineUsers);
     socket.on("pulse:new", onPulseNew);
+    socket.on("workspace:member-joined", onMemberJoined);
 
     try {
       const t = localStorage.getItem("lastActiveTask");
@@ -74,8 +86,9 @@ const Workspace = () => {
 
     return () => {
       socket.emit("leave-workspace", { workspaceId: id });
-      socket.off("online-users", onOnlineUsers);
+      socket.off("workspace-online-users", onOnlineUsers);
       socket.off("pulse:new", onPulseNew);
+      socket.off("workspace:member-joined", onMemberJoined);
     };
   }, [id, fetchData]);
 
@@ -328,35 +341,30 @@ const Workspace = () => {
               )}
             </div>
 
-            {/* Recent Collaboration Timeline */}
+            {/* Teammate Pulse */}
             <div className="flex flex-col gap-4">
-              <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-mono">Recent Operations</h2>
-              <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-5 flex flex-col gap-3.5">
-                {pulseEvents.length === 0 ? (
-                  <p className="text-zinc-650 italic text-[11px] font-mono leading-snug">No recent operations logged. Board modifications and AI sprints trigger Pulse logs.</p>
-                ) : (
-                  <div className="flex flex-col gap-3 font-mono text-[10px]">
-                    {pulseEvents.map((item) => {
-                      const iconMap = {
-                        sprint_generated: "✨",
-                        task_moved: "📋",
-                        resource_shared: "📚",
-                        workspace_created: "📨",
-                        milestone_reached: "🎉",
-                        temporal_summary: "📈",
-                      };
-                      return (
-                        <div key={item._id} className="flex items-start gap-2.5 text-zinc-500 hover:text-zinc-350 transition duration-200">
-                          <span className="text-xs select-none">{iconMap[item.type] || "⚡"}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="leading-relaxed text-zinc-400">{item.content}</p>
-                            <span className="text-zinc-650 text-[8px]">{timeAgo(item.createdAt)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-mono">Teammate Pulse</h2>
+                <Link to={`/workspace/${id}/pulse`} className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono">
+                  Open Engineering Space →
+                </Link>
+              </div>
+              <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-5 grid md:grid-cols-2 gap-4">
+                <div className="border border-zinc-900 rounded-xl p-3 bg-zinc-900/20">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-mono">Active sprint momentum</p>
+                  <p className="mt-1 text-xs text-zinc-300">
+                    {tasks.filter((t) => t.status !== "done").length} tasks in motion · {tasks.filter((t) => t.status === "done").length} completed
+                  </p>
+                </div>
+                <div className="border border-zinc-900 rounded-xl p-3 bg-zinc-900/20">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-mono">Recent collaboration</p>
+                  <p className="mt-1 text-xs text-zinc-300">
+                    {pulseEvents[0]?.content || "No recent events yet. AI sprints, tasks, and resources will appear here."}
+                  </p>
+                  {pulseEvents[0]?.createdAt && (
+                    <p className="mt-1 text-[10px] text-zinc-600">{timeAgo(pulseEvents[0].createdAt)}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
