@@ -36,6 +36,7 @@ export default function NotificationBell({ onNavigate }) {
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("important");
   const drawerRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -99,10 +100,59 @@ export default function NotificationBell({ onNavigate }) {
     }
   };
 
-  const today = notifications.filter((n) => {
+  // Filter notifications into tabs
+  const importantNotifs = notifications.filter(
+    (n) => n.type === "mention" || n.type === "task_assigned" || n.priority === "high"
+  );
+  
+  const sprintNotifs = notifications.filter(
+    (n) => n.type === "sprint_generated" && n.priority !== "high"
+  );
+  
+  const aiNotifs = notifications.filter(
+    (n) =>
+      n.type !== "mention" &&
+      n.type !== "task_assigned" &&
+      n.priority !== "high" &&
+      (n.type === "ai_suggestion" || n.message.includes("AI") || n.message.includes("Gemini") || n.message.includes("roadmap"))
+  );
+  
+  const activityNotifs = notifications.filter(
+    (n) =>
+      n.type !== "mention" &&
+      n.type !== "task_assigned" &&
+      n.type !== "sprint_generated" &&
+      n.priority !== "high" &&
+      !(n.type === "ai_suggestion" || n.message.includes("AI") || n.message.includes("Gemini") || n.message.includes("roadmap"))
+  );
+
+  const getUnreadCount = (notifList) => notifList.filter((n) => !n.read).length;
+  const unreadImportant = getUnreadCount(importantNotifs);
+  const unreadSprints = getUnreadCount(sprintNotifs);
+  const unreadActivity = getUnreadCount(activityNotifs);
+  const unreadAi = getUnreadCount(aiNotifs);
+
+  const getTabNotifications = () => {
+    switch (activeTab) {
+      case "important":
+        return importantNotifs;
+      case "sprints":
+        return sprintNotifs;
+      case "ai":
+        return aiNotifs;
+      case "activity":
+      default:
+        return activityNotifs;
+    }
+  };
+
+  const activeList = getTabNotifications();
+
+  const today = activeList.filter((n) => {
     return new Date(n.createdAt).toDateString() === new Date().toDateString();
   });
-  const older = notifications.filter((n) => {
+  
+  const older = activeList.filter((n) => {
     return new Date(n.createdAt).toDateString() !== new Date().toDateString();
   });
 
@@ -122,7 +172,7 @@ export default function NotificationBell({ onNavigate }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[480px] animate-popover">
+        <div className="absolute right-0 top-11 w-96 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[500px] animate-popover">
           <style>{`
             @keyframes popoverScale {
               from { opacity: 0; transform: scale(0.95) translateY(-5px); }
@@ -133,6 +183,8 @@ export default function NotificationBell({ onNavigate }) {
               transform-origin: top right;
             }
           `}</style>
+          
+          {/* Header */}
           <div className="px-4 py-3 border-b border-zinc-900 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider">Notifications</h3>
@@ -145,32 +197,63 @@ export default function NotificationBell({ onNavigate }) {
             )}
           </div>
 
+          {/* Segmented Tab Bar */}
+          <div className="flex border-b border-zinc-900 bg-zinc-950 flex-shrink-0 select-none overflow-x-auto scrollbar-none">
+            {[
+              { id: "important", label: "Important", unread: unreadImportant },
+              { id: "sprints", label: "Sprints", unread: unreadSprints },
+              { id: "activity", label: "Activity", unread: unreadActivity },
+              { id: "ai", label: "AI Suggestions", unread: unreadAi },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 min-w-[70px] py-2.5 text-center border-b-2 text-[8px] font-mono tracking-tight font-black uppercase transition ${
+                  activeTab === tab.id
+                    ? "border-white text-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-350"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.unread > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-[7px] px-1 rounded-full font-sans font-bold">
+                    {tab.unread}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Content Pane */}
           <div className="flex-1 overflow-y-auto scrollbar-thin">
             {loading ? (
-              <div className="flex items-center justify-center py-10">
+              <div className="flex items-center justify-center py-12">
                 <span className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
               </div>
-            ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center py-10 px-4 text-center">
-                <span className="text-3xl mb-3 opacity-30">🔔</span>
-                <p className="text-zinc-600 text-xs leading-relaxed">
-                  When teammates assign tasks, comment, or complete sprints — it shows up here.
+            ) : activeList.length === 0 ? (
+              <div className="flex flex-col items-center py-12 px-6 text-center">
+                <span className="text-3xl mb-3 opacity-30 select-none">🔔</span>
+                <p className="text-zinc-650 text-xs leading-relaxed max-w-xs font-mono">
+                  {activeTab === "important" && "No assignments or mentions active."}
+                  {activeTab === "sprints" && "No sprint roadmap notifications."}
+                  {activeTab === "activity" && "No drag-and-drop or comment logs."}
+                  {activeTab === "ai" && "AI knowledge recommendations and tips will populate here."}
                 </p>
               </div>
             ) : (
               <div className="flex flex-col">
                 {today.length > 0 && (
                   <>
-                    <div className="px-4 pt-3 pb-1">
-                      <p className="text-[9px] font-extrabold text-zinc-600 uppercase tracking-wider">Today</p>
+                    <div className="px-4 pt-3.5 pb-1">
+                      <p className="text-[9px] font-extrabold text-zinc-600 uppercase tracking-wider font-mono">Today</p>
                     </div>
                     {today.map((n) => <NotifItem key={n._id} notif={n} onRead={markRead} />)}
                   </>
                 )}
                 {older.length > 0 && (
                   <>
-                    <div className="px-4 pt-3 pb-1">
-                      <p className="text-[9px] font-extrabold text-zinc-600 uppercase tracking-wider">Earlier</p>
+                    <div className="px-4 pt-3.5 pb-1">
+                      <p className="text-[9px] font-extrabold text-zinc-600 uppercase tracking-wider font-mono">Earlier</p>
                     </div>
                     {older.map((n) => <NotifItem key={n._id} notif={n} onRead={markRead} />)}
                   </>
@@ -201,7 +284,7 @@ function NotifItem({ notif, onRead }) {
               {notif.title}
             </p>
           </div>
-          <span className="text-[9px] text-zinc-600 font-mono flex-shrink-0">{timeAgo(notif.createdAt)}</span>
+          <span className="text-[9px] text-zinc-655 font-mono flex-shrink-0">{timeAgo(notif.createdAt)}</span>
         </div>
         <p className={`text-[10px] mt-0.5 leading-relaxed ${notif.read ? "text-zinc-600" : "text-zinc-400"}`}>
           {notif.message}
