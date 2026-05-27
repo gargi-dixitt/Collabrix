@@ -17,6 +17,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -34,12 +35,12 @@ app.use(
     origin(origin, callback) {
       /*
       |--------------------------------------------------------------------------
-      | Allow requests with no origin
+      | Allow requests without origin
       |--------------------------------------------------------------------------
       | Useful for:
-      | - mobile apps
       | - Postman
       | - server-to-server requests
+      | - mobile apps
       |--------------------------------------------------------------------------
       */
 
@@ -49,7 +50,7 @@ app.use(
 
       /*
       |--------------------------------------------------------------------------
-      | Allow trusted frontend origins
+      | Allow trusted origins
       |--------------------------------------------------------------------------
       */
 
@@ -59,7 +60,7 @@ app.use(
 
       /*
       |--------------------------------------------------------------------------
-      | Block unknown origins
+      | Reject unknown origins
       |--------------------------------------------------------------------------
       */
 
@@ -90,7 +91,7 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| Request Body Parsing
+| Body Parsing
 |--------------------------------------------------------------------------
 */
 
@@ -102,9 +103,9 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| HTTP Request Logging
+| HTTP Logging
 |--------------------------------------------------------------------------
-| Skip noisy logging during automated tests.
+| Skip logs during automated tests.
 |--------------------------------------------------------------------------
 */
 
@@ -114,12 +115,12 @@ if (process.env.NODE_ENV !== "test") {
 
 /*
 |--------------------------------------------------------------------------
-| Root Health Route
+| Root Route
 |--------------------------------------------------------------------------
 */
 
 app.get("/", (_req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Collabrix API running",
     version: "1.0",
@@ -128,14 +129,34 @@ app.get("/", (_req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| API Health Route
+| API Status Route
 |--------------------------------------------------------------------------
 */
 
 app.get("/api", (_req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Collabrix API available",
+  });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Health Check Route
+|--------------------------------------------------------------------------
+| Useful for:
+| - Render health monitoring
+| - uptime checks
+| - deployment diagnostics
+|--------------------------------------------------------------------------
+*/
+
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "healthy",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -167,7 +188,10 @@ app.use(
   messageRoutes
 );
 
-app.use("/api/ai", aiRoutes);
+app.use(
+  "/api/ai",
+  aiRoutes
+);
 
 app.use(
   "/api/notifications",
@@ -179,7 +203,10 @@ app.use(
   resourceRoutes
 );
 
-app.use("/api/pulse", pulseRoutes);
+app.use(
+  "/api/pulse",
+  pulseRoutes
+);
 
 app.use(
   "/api/collections",
@@ -188,7 +215,7 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| 404 Handler
+| 404 Route Handler
 |--------------------------------------------------------------------------
 */
 
@@ -198,7 +225,6 @@ app.use((_req, res) => {
     message: "Route not found",
   });
 });
-
 
 
 app.use(errorHandler);
