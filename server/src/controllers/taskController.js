@@ -47,6 +47,7 @@ export const createTask = async (req, res, next) => {
 
     const populated = await Task.findById(task._id)
       .populate("assignee createdBy", "name email avatar")
+      .populate("resources")
       .lean();
 
     res.status(201).json(populated);
@@ -62,6 +63,7 @@ export const getTasks = async (req, res, next) => {
 
     const tasks = await Task.find({ project: projectId })
       .populate("assignee createdBy", "name email avatar")
+      .populate("resources")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -89,7 +91,7 @@ export const updateTaskStatus = async (req, res, next) => {
       taskId,
       { $set: updates },
       { new: true, runValidators: true }
-    ).populate("assignee createdBy", "name email avatar");
+    ).populate("assignee createdBy", "name email avatar").populate("resources");
 
     if (!updated) {
       return res.status(404).json({ success: false, message: "Task not found" });

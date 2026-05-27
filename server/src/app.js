@@ -9,6 +9,7 @@ import taskRoutes from "./routes/tasks.js";
 import messageRoutes from "./routes/messages.js";
 import aiRoutes from "./routes/ai.js";
 import notificationRoutes from "./routes/notifications.js";
+import resourceRoutes from "./routes/resources.js";
 
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -37,6 +38,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/resources", resourceRoutes);
 
 // 404 handler for any unmatched routes
 app.use((_req, res) => {

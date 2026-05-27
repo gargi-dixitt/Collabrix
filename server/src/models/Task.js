@@ -89,6 +89,13 @@ const taskSchema = new mongoose.Schema(
       default: 0,
     },
 
+    resources: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Resource",
+      }
+    ],
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
