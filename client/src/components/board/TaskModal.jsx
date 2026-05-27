@@ -13,6 +13,7 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [savingComment, setSavingComment] = useState(false);
+  const [projectTasks, setProjectTasks] = useState([]);
 
   // Edit states
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -76,6 +77,7 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
         setTitle(foundTask.title);
         setDescription(foundTask.description || "");
       }
+      setProjectTasks((taskRes.data || []).filter((t) => t._id !== taskId));
 
       // Fetch comments
       const commentsRes = await api.get(`/tasks/${taskId}/comments`);
@@ -90,6 +92,28 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
       setLoading(false);
     }
   }, [taskId, projectId]);
+
+  const handleAddDependency = (title) => {
+    if (!title || (task.dependencies || []).includes(title)) return;
+    const updated = [...(task.dependencies || []), title];
+    saveTaskUpdates({ dependencies: updated });
+  };
+
+  const handleRemoveDependency = (titleToRemove) => {
+    const updated = (task.dependencies || []).filter((d) => d !== titleToRemove);
+    saveTaskUpdates({ dependencies: updated });
+  };
+
+  const handleAddBlocker = (title) => {
+    if (!title || (task.blockers || []).includes(title)) return;
+    const updated = [...(task.blockers || []), title];
+    saveTaskUpdates({ blockers: updated });
+  };
+
+  const handleRemoveBlocker = (titleToRemove) => {
+    const updated = (task.blockers || []).filter((b) => b !== titleToRemove);
+    saveTaskUpdates({ blockers: updated });
+  };
 
   useEffect(() => {
     fetchData();
@@ -557,6 +581,124 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
                 onChange={(e) => saveTaskUpdates({ dueDate: e.target.value || null })}
                 className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2.5 text-zinc-300 outline-none focus:border-zinc-700 cursor-pointer font-sans"
               />
+            </div>
+
+            {/* Milestone Selector/Input */}
+            <div>
+              <label className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider block mb-2">Milestone</label>
+              <input
+                type="text"
+                placeholder="e.g. Foundation, Core Setup, Launch"
+                value={task.milestone || ""}
+                onChange={(e) => saveTaskUpdates({ milestone: e.target.value })}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2.5 text-zinc-300 outline-none focus:border-zinc-700 font-sans"
+              />
+            </div>
+
+            {/* Review Stage Selector */}
+            <div>
+              <label className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider block mb-2">Review Stage</label>
+              <select
+                value={task.reviewStage || ""}
+                onChange={(e) => saveTaskUpdates({ reviewStage: e.target.value })}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2.5 text-zinc-300 outline-none focus:border-zinc-700 cursor-pointer"
+              >
+                <option value="">None (No review needed)</option>
+                <option value="design-review">🎨 Design Review</option>
+                <option value="code-review">💻 Code Review</option>
+                <option value="qa-testing">🧪 QA Testing</option>
+                <option value="ready-to-deploy">🚀 Ready to Deploy</option>
+              </select>
+            </div>
+
+            {/* Deploy Order Selector */}
+            <div>
+              <label className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider block mb-2">Deploy Sequence Order</label>
+              <input
+                type="number"
+                min="0"
+                value={task.deployOrder || 0}
+                onChange={(e) => saveTaskUpdates({ deployOrder: parseInt(e.target.value) || 0 })}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2.5 text-zinc-300 outline-none focus:border-zinc-700 font-mono"
+              />
+            </div>
+
+            {/* Blocker Tasks */}
+            <div>
+              <label className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider block mb-2">🚫 Blockers ({ (task.blockers || []).length })</label>
+              <div className="flex flex-col gap-1.5 mb-2">
+                {(task.blockers || []).map((b, i) => (
+                  <span
+                    key={i}
+                    className="flex items-center justify-between bg-red-950/20 border border-red-900/30 text-red-400 text-[10px] px-2.5 py-1.5 rounded-xl font-mono"
+                  >
+                    <span className="truncate max-w-[150px]">{b}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBlocker(b)}
+                      className="text-red-500 hover:text-red-300 transition text-[10px] ml-1 flex-shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <select
+                value=""
+                onChange={(e) => {
+                  handleAddBlocker(e.target.value);
+                  e.target.value = "";
+                }}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2 text-zinc-400 outline-none focus:border-zinc-700 cursor-pointer"
+              >
+                <option value="" disabled>+ Add Blocker Task...</option>
+                {projectTasks
+                  .filter((t) => !(task.blockers || []).includes(t.title))
+                  .map((t) => (
+                    <option key={t._id} value={t.title}>
+                      {t.title}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Prerequisite Tasks */}
+            <div>
+              <label className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider block mb-2">⛓ Prerequisites (Dependencies) ({ (task.dependencies || []).length })</label>
+              <div className="flex flex-col gap-1.5 mb-2">
+                {(task.dependencies || []).map((d, i) => (
+                  <span
+                    key={i}
+                    className="flex items-center justify-between bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] px-2.5 py-1.5 rounded-xl font-mono"
+                  >
+                    <span className="truncate max-w-[150px]">{d}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDependency(d)}
+                      className="text-zinc-500 hover:text-zinc-350 transition text-[10px] ml-1 flex-shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <select
+                value=""
+                onChange={(e) => {
+                  handleAddDependency(e.target.value);
+                  e.target.value = "";
+                }}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs rounded-xl px-3 py-2 text-zinc-400 outline-none focus:border-zinc-700 cursor-pointer"
+              >
+                <option value="" disabled>+ Add Prerequisite Task...</option>
+                {projectTasks
+                  .filter((t) => !(task.dependencies || []).includes(t.title))
+                  .map((t) => (
+                    <option key={t._id} value={t.title}>
+                      {t.title}
+                    </option>
+                  ))}
+              </select>
             </div>
 
             {/* Creator details */}

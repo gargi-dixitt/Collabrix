@@ -122,7 +122,17 @@ export default function NotificationBell({ onNavigate }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[480px]">
+        <div className="absolute right-0 top-11 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[480px] animate-popover">
+          <style>{`
+            @keyframes popoverScale {
+              from { opacity: 0; transform: scale(0.95) translateY(-5px); }
+              to { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            .animate-popover {
+              animation: popoverScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              transform-origin: top right;
+            }
+          `}</style>
           <div className="px-4 py-3 border-b border-zinc-900 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider">Notifications</h3>
