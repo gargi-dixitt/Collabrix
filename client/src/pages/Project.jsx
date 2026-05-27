@@ -438,6 +438,7 @@ const Project = () => {
             {columnTasks.map((task, index) => {
               const isPeerDragging = !!peerDrags[task._id];
               const peerDragger = peerDrags[task._id];
+              const isNew = task.createdAt && (new Date() - new Date(task.createdAt) < 6500);
 
               return (
                 <Draggable key={task._id} draggableId={task._id} index={index}>
@@ -452,13 +453,15 @@ const Project = () => {
                           );
                         }
                       }}
-                      className={`bg-zinc-900 border rounded-2xl p-4 transition-all duration-200 group cursor-pointer active:cursor-grabbing ${
+                      className={`bg-zinc-900 border rounded-2xl p-4 transition-all duration-300 group cursor-pointer active:cursor-grabbing ${
                         snapshot.isDragging
                           ? "border-violet-600/60 shadow-xl shadow-violet-900/20 rotate-1 scale-105 ring-1 ring-violet-600/30"
                           : isPeerDragging
                           ? "border-amber-700/50 opacity-60 bg-zinc-900/60 ring-1 ring-amber-800/30"
+                          : isNew
+                          ? "border-violet-500/80 ring-2 ring-violet-500/30 animate-pulse bg-violet-950/5 shadow-md shadow-violet-950/20"
                           : draggingTaskId && draggingTaskId !== task._id
-                          ? "border-zinc-850 opacity-60"
+                          ? "border-zinc-850 opacity-65"
                           : "border-zinc-850 hover:border-zinc-700 hover:shadow-md hover:shadow-black/30 hover:scale-[1.01] hover:bg-zinc-900/80"
                       }`}
                       ref={provided.innerRef}
@@ -477,7 +480,7 @@ const Project = () => {
 
                       {/* Labels */}
                       {task.labels && task.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        <div className="flex flex-wrap gap-1 mb-2 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
                           {task.labels.map((l, i) => (
                             <span
                               key={i}
@@ -491,7 +494,7 @@ const Project = () => {
 
                       {/* Milestone, reviewStage, and deployOrder badges */}
                       {(task.milestone || task.reviewStage || task.deployOrder) && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
+                        <div className="flex flex-wrap gap-1.5 mb-2 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
                           {task.milestone && (
                             <span className="text-[9px] bg-violet-950/30 text-violet-400 border border-violet-900/30 px-1.5 py-0.5 rounded font-mono">
                               {task.milestone}
@@ -515,14 +518,14 @@ const Project = () => {
                       </h3>
 
                       {task.description && (
-                        <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">
+                        <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed opacity-75 group-hover:opacity-100 transition-opacity duration-200">
                           {task.description}
                         </p>
                       )}
 
                       {/* Dependencies / Blockers */}
                       {((task.dependencies && task.dependencies.length > 0) || (task.blockers && task.blockers.length > 0)) && (
-                        <div className="flex flex-col gap-1 mt-2.5 border-t border-zinc-950 pt-2 font-mono text-[9px] select-none">
+                        <div className="flex flex-col gap-1 mt-2.5 border-t border-zinc-950 pt-2 font-mono text-[9px] select-none opacity-50 group-hover:opacity-100 transition-opacity duration-200">
                           {task.blockers && task.blockers.length > 0 && (
                             <div className="flex items-center gap-1 flex-wrap">
                               <span className="text-red-400 font-extrabold text-[8px] tracking-wide uppercase">🚫 Blocked By:</span>
@@ -535,7 +538,7 @@ const Project = () => {
                           )}
                           {task.dependencies && task.dependencies.length > 0 && !task.blockers?.includes(task.dependencies[0]) && (
                             <div className="flex items-center gap-1 flex-wrap">
-                              <span className="text-zinc-500 font-extrabold text-[8px] tracking-wide uppercase">⛓ Prereq:</span>
+                              <span className="text-zinc-550 font-extrabold text-[8px] tracking-wide uppercase">⛓ Prereq:</span>
                               {task.dependencies.map((d, di) => (
                                 <span key={di} className="bg-zinc-950 text-zinc-450 border border-zinc-900 px-1.5 py-0.5 rounded" title={d}>
                                   {d.length > 16 ? d.slice(0, 16) + "…" : d}
@@ -548,7 +551,7 @@ const Project = () => {
 
                       {/* Due Date & Checklist Indicators */}
                       {(task.dueDate || (task.subtasks && task.subtasks.length > 0)) && (
-                        <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-[10px] text-zinc-500 font-mono select-none">
+                        <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-[10px] text-zinc-550 font-mono select-none opacity-55 group-hover:opacity-100 transition-opacity duration-200">
                           {task.dueDate && (
                             <div className="flex items-center gap-1">
                               <span>📅</span>

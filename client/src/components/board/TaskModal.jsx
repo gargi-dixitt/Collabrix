@@ -231,8 +231,24 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto animate-overlay">
+      <style>{`
+        @keyframes overlayFade {
+          from { opacity: 0; backdrop-filter: blur(0px); }
+          to { opacity: 1; backdrop-filter: blur(4px); }
+        }
+        @keyframes modalScaleUp {
+          from { opacity: 0; transform: scale(0.96) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-overlay {
+          animation: overlayFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-modal {
+          animation: modalScaleUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-modal">
         {/* Header */}
         <div className="px-6 py-5 border-b border-zinc-900 flex justify-between items-center bg-zinc-950/80 backdrop-blur">
           <div className="flex-1 mr-4">

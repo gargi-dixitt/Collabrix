@@ -119,6 +119,17 @@ export default function AiSprintModal({ projectId, onClose, onSprintAccepted, ac
         count: created.length,
         actorName: actorName || "Someone",
       });
+
+      try {
+        const msgRes = await api.post("/messages", {
+          project: projectId,
+          text: `🤖 Gemini AI has generated a new collaborative sprint: "${sprint.projectType || "Sprint"}" containing ${created.length} sequence-planned tasks. Board populated!`,
+          isSystem: true,
+        });
+        socket.emit("send-message", { projectId, message: msgRes.data });
+      } catch (err) {
+        console.warn("Failed to inject persistent chat announcement:", err.message);
+      }
     }
 
     setPopulating(false);
