@@ -9,6 +9,8 @@ import {
   getMembers,
   removeMember,
   getInviteInfo,
+  revokeInvite,
+  resendInvite,
 } from "../controllers/workspaceController.js";
 
 const router = express.Router();
@@ -18,6 +20,8 @@ router.get("/", authMiddleware, getWorkspaces);
 router.get("/:id", authMiddleware, getWorkspace);
 router.get("/:id/members", authMiddleware, getMembers);
 router.post("/:id/invite", authMiddleware, createInviteLink);
+router.delete("/:id/invite/:token", authMiddleware, revokeInvite);
+router.post("/:id/invite/:token/resend", authMiddleware, resendInvite);
 router.post("/join/:token", authMiddleware, joinViaInvite);
 router.delete("/:id/members/:userId", authMiddleware, removeMember);
 router.get("/invite/:token", getInviteInfo);  // Public — no auth needed

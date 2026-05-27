@@ -8,6 +8,7 @@ import {
   updateTaskStatus,
   getComments,
   addComment,
+  getWorkspaceTasks,
 } from "../controllers/taskController.js";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ const router = express.Router();
 // Task CRUD
 router.post("/", authMiddleware, createTask);
 router.get("/:projectId", authMiddleware, getTasks);
+router.get("/workspace/:workspaceId", authMiddleware, getWorkspaceTasks);
 router.put("/:taskId", authMiddleware, updateTaskStatus);
 
 // Comments

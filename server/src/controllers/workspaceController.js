@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import Workspace from "../models/workspace.js";
 import User from "../models/User.js";
+import { logPulseEvent } from "../services/pulseService.js";
 
 // Create workspace — creator becomes owner + first member
 export const createWorkspace = async (req, res, next) => {

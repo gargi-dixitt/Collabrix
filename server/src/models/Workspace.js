@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const memberSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    role: { type: String, enum: ["owner", "admin", "member"], default: "member" },
+    role: { type: String, enum: ["owner", "admin", "member", "viewer"], default: "member" },
     joinedAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -14,7 +14,7 @@ const inviteSchema = new mongoose.Schema(
     token: { type: String, required: true, unique: true },
     email: { type: String, lowercase: true, trim: true },
     invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    role: { type: String, enum: ["admin", "member"], default: "member" },
+    role: { type: String, enum: ["admin", "member", "viewer"], default: "member" },
     status: { type: String, enum: ["pending", "accepted", "expired"], default: "pending" },
     expiresAt: { type: Date },
     createdAt: { type: Date, default: Date.now },

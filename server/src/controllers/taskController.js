@@ -274,3 +274,18 @@ export const addComment = async (req, res, next) => {
     next(err);
   }
 };
+
+// Get all tasks in a workspace
+export const getWorkspaceTasks = async (req, res, next) => {
+  try {
+    const { workspaceId } = req.params;
+    const tasks = await Task.find({ workspace: workspaceId })
+      .populate("assignee createdBy", "name email avatar")
+      .populate("resources")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.status(200).json(tasks);
+  } catch (err) {
+    next(err);
+  }
+};

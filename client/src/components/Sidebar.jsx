@@ -55,7 +55,7 @@ const Sidebar = () => {
           Collabrix
         </span>
         <div className="flex items-center gap-1">
-          <NotificationBell />
+          {/* NotificationBell removed from sidebar */}
         </div>
       </div>
 
@@ -76,10 +76,16 @@ const Sidebar = () => {
         {/* Brand */}
         <div className="px-6 pt-6 pb-4 border-b border-zinc-900 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent animate-pulse">
               Collabrix
             </h1>
-            <p className="text-[10px] text-zinc-650 font-mono mt-0.5">Team engineering workspace</p>
+            {activeWorkspaceId ? (
+              <Link to="/dashboard" className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono mt-0.5 block">
+                ← Switch workspace
+              </Link>
+            ) : (
+              <p className="text-[10px] text-zinc-650 font-mono mt-0.5">Team engineering workspace</p>
+            )}
           </div>
           <button
             onClick={() => setMobileOpen(false)}
@@ -90,32 +96,72 @@ const Sidebar = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto scrollbar-thin">
-          <NavLink to="/dashboard" icon="📊" label="Dashboard" active={isActive("/dashboard")} />
-          {activeWorkspaceId && (
+        <nav className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto scrollbar-thin">
+          {activeWorkspaceId ? (
             <>
-              <NavLink
-                to={`/workspace/${activeWorkspaceId}/resources`}
-                icon="📚"
-                label="Resource Hub"
-                active={isActive(`/workspace/${activeWorkspaceId}/resources`)}
-              />
-              <NavLink
-                to={`/workspace/${activeWorkspaceId}/pulse`}
-                icon="⚡"
-                label="Pulse Timeline"
-                active={isActive(`/workspace/${activeWorkspaceId}/pulse`)}
-              />
+              {/* Workspace Section */}
+              <div className="flex flex-col gap-1">
+                <span className="px-3 text-[9px] font-bold text-zinc-600 uppercase tracking-wider mb-1 font-mono">Workspace</span>
+                <NavLink to={`/workspace/${activeWorkspaceId}`} icon="📊" label="Dashboard" active={location.pathname === `/workspace/${activeWorkspaceId}`} />
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/pulse`}
+                  icon="⚡"
+                  label="Engineering Space"
+                  active={isActive(`/workspace/${activeWorkspaceId}/pulse`)}
+                />
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/resources`}
+                  icon="📚"
+                  label="Resource Hub"
+                  active={isActive(`/workspace/${activeWorkspaceId}/resources`)}
+                />
+              </div>
+
+              {/* Engineering Section */}
+              <div className="flex flex-col gap-1">
+                <span className="px-3 text-[9px] font-bold text-zinc-600 uppercase tracking-wider mb-1 font-mono">Engineering</span>
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/wiki`}
+                  icon="📖"
+                  label="Wiki"
+                  active={isActive(`/workspace/${activeWorkspaceId}/wiki`)}
+                />
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/snippets`}
+                  icon="💻"
+                  label="Snippets"
+                  active={isActive(`/workspace/${activeWorkspaceId}/snippets`)}
+                />
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/code-review`}
+                  icon="🔍"
+                  label="Code Review"
+                  active={isActive(`/workspace/${activeWorkspaceId}/code-review`)}
+                />
+              </div>
+
+              {/* Workspace Settings Section */}
+              <div className="flex flex-col gap-1">
+                <span className="px-3 text-[9px] font-bold text-zinc-600 uppercase tracking-wider mb-1 font-mono">Workspace Settings</span>
+                <NavLink
+                  to={`/workspace/${activeWorkspaceId}/billing`}
+                  icon="💳"
+                  label="Billing"
+                  active={isActive(`/workspace/${activeWorkspaceId}/billing`)}
+                />
+              </div>
             </>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <NavLink to="/dashboard" icon="📊" label="Workspaces" active={isActive("/dashboard")} />
+            </div>
           )}
         </nav>
 
         {/* Bottom user section */}
         <div className="px-4 pb-5 pt-3 border-t border-zinc-900 flex flex-col gap-3">
-          {/* Notification bell (hidden on mobile since it is in the header) */}
           <div className="hidden md:flex items-center justify-between">
             <span className="text-[10px] text-zinc-600 uppercase font-bold tracking-wider">You</span>
-            <NotificationBell />
           </div>
 
           {/* User info */}
@@ -148,14 +194,14 @@ function NavLink({ to, icon, label, active }) {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
         active
-          ? "bg-zinc-900 text-white border border-zinc-800 shadow"
-          : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-300"
+          ? "bg-zinc-900 text-white border border-zinc-800 shadow-lg shadow-black/40 ring-1 ring-white/5"
+          : "text-zinc-500 hover:bg-zinc-900/40 hover:text-zinc-300"
       }`}
     >
-      <span className="text-base">{icon}</span>
-      {label}
+      <span className="text-sm">{icon}</span>
+      <span>{label}</span>
     </Link>
   );
 }
