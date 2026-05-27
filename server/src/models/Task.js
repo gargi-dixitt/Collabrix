@@ -59,6 +59,16 @@ const taskSchema = new mongoose.Schema(
       }
     ],
 
+    milestone: {
+      type: String,
+      default: "",
+    },
+
+    suggestedOwner: {
+      type: String,
+      default: "",
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

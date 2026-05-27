@@ -4,6 +4,9 @@ import socket from "../../socket";
 import Avatar from "../ui/Avatar";
 
 export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated }) {
+  // Presence: who else is viewing / editing this task
+  const [viewers, setViewers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null); // { userName, field }
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -21,6 +24,45 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
 
   const commentEndRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // Announce we're viewing this task when the modal opens
+  useEffect(() => {
+    socket.emit("task:viewing-start", { projectId, taskId, userName: user.name });
+    return () => {
+      socket.emit("task:viewing-stop", { projectId, taskId, userName: user.name });
+    };
+  }, [taskId, projectId]);
+
+  // Listen for other viewers and editing states
+  useEffect(() => {
+    const onViewersUpdated = ({ taskId: incomingId, userName, action }) => {
+      if (incomingId !== taskId || userName === user.name) return;
+      setViewers((prev) => {
+        if (action === "join") {
+          return prev.includes(userName) ? prev : [...prev, userName];
+        } else {
+          return prev.filter((n) => n !== userName);
+        }
+      });
+    };
+
+    const onEditingUpdated = ({ taskId: incomingId, userName, field, action }) => {
+      if (incomingId !== taskId || userName === user.name) return;
+      if (action === "start") {
+        setEditingUser({ userName, field });
+      } else {
+        setEditingUser(null);
+      }
+    };
+
+    socket.on("task:viewers-updated", onViewersUpdated);
+    socket.on("task:editing-updated", onEditingUpdated);
+
+    return () => {
+      socket.off("task:viewers-updated", onViewersUpdated);
+      socket.off("task:editing-updated", onEditingUpdated);
+    };
+  }, [taskId]);
 
   // Fetch task, comments, and users
   const fetchData = useCallback(async () => {
@@ -104,6 +146,7 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
 
   const handleDescSubmit = () => {
     setIsEditingDesc(false);
+    socket.emit("task:editing-stop", { projectId, taskId, userName: user.name });
     if (description !== task.description) {
       saveTaskUpdates({ description: description.trim() });
     }
@@ -212,6 +255,25 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
                 {task.title}
               </h2>
             )}
+
+            {/* Live presence badges */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {viewers.map((name) => (
+                <span
+                  key={name}
+                  className="flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded-full font-mono"
+                >
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                  {name} is viewing
+                </span>
+              ))}
+              {editingUser && (
+                <span className="flex items-center gap-1.5 text-[10px] text-amber-400 bg-amber-950/20 border border-amber-900/30 px-2 py-0.5 rounded-full font-mono">
+                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
+                  {editingUser.userName} is editing{editingUser.field ? ` ${editingUser.field}` : ""}
+                </span>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -233,11 +295,12 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
+                    onFocus={() => socket.emit("task:editing-start", { projectId, taskId, userName: user.name, field: "description" })}
                     className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-200 w-full min-h-[120px] outline-none focus:border-zinc-700 resize-none font-sans leading-relaxed"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
-                      onClick={() => setIsEditingDesc(false)}
+                      onClick={() => { setIsEditingDesc(false); socket.emit("task:editing-stop", { projectId, taskId, userName: user.name }); }}
                       className="px-3.5 py-1.5 border border-zinc-850 hover:border-zinc-700 text-xs font-bold text-zinc-400 rounded-xl transition"
                     >
                       Cancel

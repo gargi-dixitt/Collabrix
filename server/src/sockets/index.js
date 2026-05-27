@@ -145,6 +145,39 @@ const initSockets = (server) => {
       socket.to(projectId).emit("user-typing", { userName, isTyping: false });
     });
 
+    // ─── Live drag presence ───────────────────────────────────────────
+    socket.on("task:drag-start", ({ projectId, taskId, actorName, columnId }) => {
+      if (!projectId || !taskId) return;
+      socket.to(projectId).emit("task:drag-started", { taskId, actorName, columnId });
+    });
+
+    socket.on("task:drag-end", ({ projectId, taskId }) => {
+      if (!projectId) return;
+      socket.to(projectId).emit("task:drag-ended", { taskId });
+    });
+
+    // ─── Task viewing presence ────────────────────────────────────────
+    socket.on("task:viewing-start", ({ projectId, taskId, userName }) => {
+      if (!projectId || !taskId) return;
+      socket.to(projectId).emit("task:viewers-updated", { taskId, userName, action: "join" });
+    });
+
+    socket.on("task:viewing-stop", ({ projectId, taskId, userName }) => {
+      if (!projectId || !taskId) return;
+      socket.to(projectId).emit("task:viewers-updated", { taskId, userName, action: "leave" });
+    });
+
+    // ─── Task editing presence ────────────────────────────────────────
+    socket.on("task:editing-start", ({ projectId, taskId, userName, field }) => {
+      if (!projectId || !taskId) return;
+      socket.to(projectId).emit("task:editing-updated", { taskId, userName, field, action: "start" });
+    });
+
+    socket.on("task:editing-stop", ({ projectId, taskId, userName }) => {
+      if (!projectId || !taskId) return;
+      socket.to(projectId).emit("task:editing-updated", { taskId, userName, action: "stop" });
+    });
+
     // ─── Disconnect ───────────────────────────────────────────────────
     socket.on("disconnect", (reason) => {
       const projectId = socketToProject[socket.id];
@@ -152,6 +185,9 @@ const initSockets = (server) => {
         const userData = presence[projectId]?.get(socket.id);
         if (userData) {
           socket.to(projectId).emit("presence-status", { name: userData.name, type: "leave" });
+          // Clean up any drag or viewing state this socket held
+          socket.to(projectId).emit("task:drag-ended", { taskId: null, actorName: userData.name });
+          socket.to(projectId).emit("task:viewers-updated", { taskId: null, userName: userData.name, action: "leave" });
         }
         removeFromPresence(socket.id, projectId);
         broadcastPresence(io, projectId);
