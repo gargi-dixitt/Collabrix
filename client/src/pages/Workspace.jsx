@@ -341,12 +341,12 @@ const Workspace = () => {
               )}
             </div>
 
-            {/* Teammate Pulse */}
+            {/* Engineer’s Space */}
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-mono">Teammate Pulse</h2>
+                <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-mono">Engineer’s Space</h2>
                 <Link to={`/workspace/${id}/pulse`} className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono">
-                  Open Engineering Space →
+                  Open Engineer’s Space →
                 </Link>
               </div>
               <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-5 grid md:grid-cols-2 gap-4">

@@ -105,7 +105,7 @@ const Sidebar = () => {
                 <NavLink
                   to={`/workspace/${activeWorkspaceId}/pulse`}
                   icon="⚡"
-                  label="Engineering Space"
+                  label="Engineer’s Space"
                   active={isActive(`/workspace/${activeWorkspaceId}/pulse`)}
                 />
                 <NavLink

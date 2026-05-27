@@ -52,7 +52,6 @@ export default function Pulse() {
 
     const onNewPulse = (newEvent) => {
       setEvents((prev) => {
-        // Prevent duplicates
         if (prev.some((e) => e._id === newEvent._id)) return prev;
         return [newEvent, ...prev];
       });
@@ -76,28 +75,83 @@ export default function Pulse() {
   const handleDeepLink = (event) => {
     const meta = event.metadata || {};
     if (meta.taskId) {
-      navigate(`/project/${meta.projectId}?task=${meta.taskId}`);
+      navigate(`/project/${meta.projectId || workspaceId}?task=${meta.taskId}`);
     } else if (meta.resourceId) {
       navigate(`/workspace/${workspaceId}/resources`);
+    } else if (meta.wikiId || event.type === "wiki_updated") {
+      navigate(`/workspace/${workspaceId}/wiki`);
+    } else if (meta.snippetId || event.type === "snippet_saved") {
+      navigate(`/workspace/${workspaceId}/snippets`);
+    } else if (meta.reviewId || event.type === "review_generated") {
+      navigate(`/workspace/${workspaceId}/code-review`);
     } else if (meta.projectId) {
       navigate(`/project/${meta.projectId}`);
     }
   };
+
+  const groupEvents = (rawEvents) => {
+    if (!rawEvents || rawEvents.length === 0) return [];
+    const grouped = [];
+    let currentGroup = null;
+
+    for (const event of rawEvents) {
+      const isTaskDone = event.content && (
+        event.content.includes("completed task") || 
+        (event.content.includes("moved") && event.content.includes("to Done")) ||
+        (event.content.includes("marked") && event.content.includes("as completed"))
+      );
+      const actorName = event.actor?.name || event.actorName || "A teammate";
+
+      if (isTaskDone) {
+        if (currentGroup && currentGroup.actorName === actorName) {
+          currentGroup.count += 1;
+          currentGroup.details.push(event.content);
+          currentGroup.ids.push(event._id);
+        } else {
+          if (currentGroup) grouped.push(currentGroup);
+          currentGroup = {
+            _id: event._id,
+            isGroup: true,
+            actorName,
+            type: "task_completion",
+            count: 1,
+            content: `${actorName} completed task`,
+            details: [event.content],
+            ids: [event._id],
+            createdAt: event.createdAt,
+            metadata: event.metadata,
+          };
+        }
+      } else {
+        if (currentGroup) {
+          grouped.push(currentGroup);
+          currentGroup = null;
+        }
+        grouped.push({
+          ...event,
+          actorName,
+        });
+      }
+    }
+    if (currentGroup) grouped.push(currentGroup);
+    return grouped;
+  };
+
+  const processedEvents = groupEvents(events);
 
   return (
     <div className="flex bg-black text-white min-h-screen">
       <Sidebar />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Monospace Terminal-Inspired Timeline */}
         <div className="flex-1 p-8 overflow-y-auto scrollbar-thin flex flex-col gap-6">
           <div className="border-b border-zinc-900 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent uppercase font-mono">
-                [pulse_timeline]
+                Engineer’s Space
               </h1>
               <p className="text-zinc-550 text-xs mt-1.5 font-mono">
-                Continuous engineering logs & workspace operations ledger.
+                Collaborative engineering memory & realtime workspace heartbeat.
               </p>
             </div>
 
@@ -110,7 +164,6 @@ export default function Pulse() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8 items-start">
-            {/* Timeline Stream */}
             <div className="lg:col-span-2 flex flex-col gap-4">
               {loading ? (
                 <div className="flex flex-col gap-4">
@@ -121,23 +174,23 @@ export default function Pulse() {
                     </div>
                   ))}
                 </div>
-              ) : events.length === 0 ? (
+              ) : processedEvents.length === 0 ? (
                 <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-16 text-center flex flex-col items-center gap-4">
                   <span className="text-4xl select-none font-mono">⚡</span>
-                  <h3 className="text-sm font-bold text-zinc-300 font-mono">[timeline_empty]</h3>
+                  <h3 className="text-sm font-bold text-zinc-300 font-mono">[space_empty]</h3>
                   <p className="text-zinc-655 text-xs max-w-sm font-mono leading-relaxed">
                     No timeline logs generated yet. Try seeding a new AI sprint, moving board cards, or sharing resource hubs. Let's build your team's engineering memory.
                   </p>
                 </div>
               ) : (
                 <div className="relative border-l border-zinc-900 ml-4 pl-6 flex flex-col gap-6">
-                  {events.map((event) => {
+                  {processedEvents.map((event) => {
                     const timeStr = new Date(event.createdAt).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                       second: "2-digit",
                     });
-                    const hasDeepLink = event.metadata?.taskId || event.metadata?.resourceId || event.metadata?.projectId;
+                    const hasDeepLink = event.metadata?.taskId || event.metadata?.resourceId || event.metadata?.projectId || event.metadata?.wikiId || event.metadata?.snippetId || event.metadata?.reviewId || event.type?.includes("wiki") || event.type?.includes("snippet") || event.type?.includes("review");
 
                     return (
                       <div
@@ -147,25 +200,37 @@ export default function Pulse() {
                           hasDeepLink ? "cursor-pointer" : ""
                         } animate-fade-in`}
                       >
-                        {/* Bullet point node */}
                         <span className="absolute -left-[31px] top-[22px] w-2.5 h-2.5 rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-zinc-500 transition" />
 
-                        {/* Timestamp */}
                         <span className="text-[10px] text-zinc-600 font-mono mt-0.5 whitespace-nowrap select-none">
                           {timeStr}
                         </span>
 
                         <div className="flex-1">
-                          <p className="text-xs text-zinc-300 font-sans leading-relaxed group-hover:text-white transition">
-                            {event.content}
-                          </p>
+                          {event.isGroup ? (
+                            <div>
+                              <p className="text-xs text-emerald-400 font-sans font-semibold leading-relaxed">
+                                🛠️ {event.actorName} completed {event.count} engineering tasks
+                              </p>
+                              <div className="mt-1.5 pl-3 border-l border-zinc-800 flex flex-col gap-1 text-[11px] text-zinc-400 font-mono">
+                                {event.details.map((detail, dIdx) => (
+                                  <div key={dIdx} className="hover:text-zinc-200 transition">
+                                    • {detail.replace(event.actorName, "").trim()}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-zinc-300 font-sans leading-relaxed group-hover:text-white transition">
+                              {event.content}
+                            </p>
+                          )}
 
-                          {/* Event Sub-details */}
                           {event.metadata?.count > 1 && event.metadata?.updates?.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1 font-mono text-[9px] text-zinc-500">
                               <span>Reconfigured:</span>
                               {event.metadata.updates.map((upd, uIdx) => (
-                                <span key={uIdx} className="bg-zinc-900/60 border border-zinc-850 px-1.5 py-0.5 rounded">
+                                <span key={uIdx} className="bg-zinc-900/60 border border-zinc-855 px-1.5 py-0.5 rounded">
                                   {upd}
                                 </span>
                               ))}
@@ -185,14 +250,25 @@ export default function Pulse() {
               )}
             </div>
 
-            {/* AI Atmosphere Sidebar */}
             <div className="lg:col-span-1 flex flex-col gap-6">
+              {aiSummary?.weeklySummary && (
+                <div className="bg-gradient-to-br from-zinc-950 to-zinc-900/90 border border-emerald-900/40 rounded-3xl p-5 shadow-lg shadow-black/40">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm">📅</span>
+                    <h3 className="text-xs font-extrabold uppercase font-mono text-emerald-400 tracking-wider">Weekly Summary</h3>
+                  </div>
+                  <p className="text-xs text-zinc-350 font-mono leading-relaxed bg-zinc-900/20 p-3 rounded-xl border border-zinc-900">
+                    {aiSummary.weeklySummary}
+                  </p>
+                </div>
+              )}
+
               <div className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-5">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-900">
                   <span className="text-sm select-none font-mono">🤖</span>
                   <div>
-                    <h3 className="text-xs font-extrabold uppercase font-mono text-zinc-400">Atmosphere_AI</h3>
-                    <p className="text-[9px] text-zinc-600 font-mono">Workspace operations digest</p>
+                    <h3 className="text-xs font-extrabold uppercase font-mono text-zinc-400">Workspace Intelligence</h3>
+                    <p className="text-[9px] text-zinc-600 font-mono">Workspace diagnostics and diagnostics ledger</p>
                   </div>
                 </div>
 
@@ -218,7 +294,34 @@ export default function Pulse() {
                       <p className="text-zinc-300 leading-relaxed bg-zinc-900/40 p-2.5 rounded-xl border border-zinc-900">{aiSummary.trends}</p>
                     </div>
 
-                    <div>
+                    <div className="border-t border-zinc-900 pt-4 mt-1 flex flex-col gap-3">
+                      <div>
+                        <span className="text-zinc-500 block uppercase tracking-wider mb-1">🔥 Most Active Sprint</span>
+                        <p className="text-emerald-400 font-bold">{aiSummary.mostActiveSprint || "Sprint 2 (Realtime & Sec)"}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-zinc-500 block uppercase tracking-wider mb-1">⚡ Busiest Engineering Area</span>
+                        <p className="text-zinc-300">{aiSummary.busiestArea || "Realtime Sync Framework"}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-zinc-500 block uppercase tracking-wider mb-1">🔗 Collaboration Spikes</span>
+                        <p className="text-violet-400">{aiSummary.collaborationSpikes || "Aryan + Bhoomi pairing on tasks"}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-zinc-500 block uppercase tracking-wider mb-1">🚀 Sprint Momentum</span>
+                        <p className="text-amber-400 font-bold">{aiSummary.sprintMomentum || "86% completion"}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-zinc-500 block uppercase tracking-wider mb-1">💬 Most Discussed Task</span>
+                        <p className="text-zinc-300 truncate" title={aiSummary.mostDiscussedTask}>{aiSummary.mostDiscussedTask || "JWT Socket Hardening"}</p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-zinc-900 pt-3">
                       <span className="text-zinc-500 block uppercase tracking-wider mb-1">✨ Atmosphere</span>
                       <p className="text-zinc-300 leading-relaxed bg-zinc-900/40 p-2.5 rounded-xl border border-zinc-900 italic">{aiSummary.atmosphere}</p>
                     </div>

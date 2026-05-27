@@ -2,7 +2,7 @@ import express from "express";
 
 import authMiddleware from "../middleware/auth.js";
 
-import { generateTasks } from "../controllers/aiController.js";
+import { generateTasks, runCodeReview } from "../controllers/aiController.js";
 import { generateSprint } from "../controllers/sprintController.js";
 import { requireSprintWrite } from "../middleware/workspaceAccess.js";
 
@@ -15,5 +15,7 @@ router.post(
 );
 
 router.post("/generate-sprint", authMiddleware, requireSprintWrite, generateSprint);
+
+router.post("/code-review", authMiddleware, runCodeReview);
 
 export default router;
