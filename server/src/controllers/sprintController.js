@@ -492,6 +492,70 @@ function buildFallbackSprint(prompt) {
   };
 }
 
+function decorateSprintWithDependencies(sprint) {
+  if (!sprint || !Array.isArray(sprint.tasks)) return sprint;
+
+  sprint.tasks = sprint.tasks.map((task, index) => {
+    const deployOrder = task.deployOrder || (index + 1);
+    let reviewStage = task.reviewStage || "";
+    if (!reviewStage) {
+      const lowerTitle = task.title.toLowerCase();
+      if (lowerTitle.includes("auth") || lowerTitle.includes("payment") || lowerTitle.includes("api") || lowerTitle.includes("server") || lowerTitle.includes("database") || lowerTitle.includes("db")) {
+        reviewStage = "PR Review & CI Validation";
+      } else if (lowerTitle.includes("ui") || lowerTitle.includes("screen") || lowerTitle.includes("design") || lowerTitle.includes("frontend")) {
+        reviewStage = "Local QA & Cross-Browser Check";
+      } else if (lowerTitle.includes("deploy") || lowerTitle.includes("ci") || lowerTitle.includes("cd")) {
+        reviewStage = "Staging Verify & Release Review";
+      } else {
+        reviewStage = "PR Review";
+      }
+    }
+
+    let dependencies = Array.isArray(task.dependencies) ? [...task.dependencies] : [];
+    let blockers = Array.isArray(task.blockers) ? [...task.blockers] : [];
+
+    if (dependencies.length === 0 && index > 0) {
+      const lowerTitle = task.title.toLowerCase();
+      if (lowerTitle.includes("ui") || lowerTitle.includes("screen") || lowerTitle.includes("frontend") || lowerTitle.includes("client")) {
+        for (let i = index - 1; i >= 0; i--) {
+          const prevTitle = sprint.tasks[i].title.toLowerCase();
+          if (prevTitle.includes("backend") || prevTitle.includes("server") || prevTitle.includes("api") || prevTitle.includes("auth") || prevTitle.includes("database")) {
+            dependencies.push(sprint.tasks[i].title);
+            blockers.push(sprint.tasks[i].title);
+            break;
+          }
+        }
+      }
+
+      if (dependencies.length === 0) {
+        for (let i = index - 1; i >= 0; i--) {
+          if (sprint.tasks[i].milestone === task.milestone) {
+            dependencies.push(sprint.tasks[i].title);
+            if (sprint.tasks[i].priority === "high") {
+              blockers.push(sprint.tasks[i].title);
+            }
+            break;
+          }
+        }
+      }
+
+      if (dependencies.length === 0 && index > 0) {
+        dependencies.push(sprint.tasks[0].title);
+      }
+    }
+
+    return {
+      ...task,
+      deployOrder,
+      reviewStage,
+      dependencies,
+      blockers,
+    };
+  });
+
+  return sprint;
+}
+
 // ─── Main Controller ──────────────────────────────────────────────────────────
 
 export const generateSprint = async (req, res) => {
@@ -508,7 +572,8 @@ export const generateSprint = async (req, res) => {
   if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "your_gemini_api_key_here") {
     console.warn("[Sprint] GEMINI_API_KEY not configured — using keyword fallback.");
     const fallback = buildFallbackSprint(prompt);
-    return res.status(200).json({ success: true, isFallback: true, fallbackReason: "AI API key not configured", ...fallback });
+    const decorated = decorateSprintWithDependencies(fallback);
+    return res.status(200).json({ success: true, isFallback: true, fallbackReason: "AI API key not configured", ...decorated });
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -538,6 +603,25 @@ Return ONLY raw JSON — no markdown, no backticks, no extra text. The JSON must
       "subtasks": ["Install dependencies", "Configure dotenv", "Connect MongoDB", "Add CORS middleware"],
       "timeline": "Day 1",
       "suggestedOwner": "Backend Dev",
+      "dependencies": [],
+      "blockers": [],
+      "reviewStage": "PR Review & CI Validation",
+      "deployOrder": 1,
+      "status": "todo"
+    },
+    {
+      "title": "Build authentication UI screens",
+      "description": "Create login, register, and forgot-password screens with form validation, error toasts, and redirect logic.",
+      "priority": "high",
+      "milestone": "Foundation",
+      "labels": ["frontend", "auth"],
+      "subtasks": ["Login form", "Register form", "Form validation"],
+      "timeline": "Day 3",
+      "suggestedOwner": "Frontend Dev",
+      "dependencies": ["Set up Express server with MongoDB"],
+      "blockers": ["Set up Express server with MongoDB"],
+      "reviewStage": "PR Review",
+      "deployOrder": 2,
       "status": "todo"
     }
   ]
@@ -549,9 +633,13 @@ Rules:
 - milestone must exactly match one of the milestone names you defined
 - subtasks must be an array of short strings (not objects)
 - labels must be an array of strings
-- Generate 10-15 realistic, specific tasks — not vague placeholders
-- Task descriptions must be detailed and actionable (2-3 sentences minimum)
-- Tasks must cover the full lifecycle: setup → core features → polish → deployment
+- dependencies must be an array of strings representing task titles that this task depends on (from the list of tasks you generate).
+- blockers must be an array of strings representing task titles that block this task (from the list of tasks you generate). If no task blocks this one, return an empty array.
+- reviewStage must be a string representing the code review or QA stage (e.g. "PR Review & CI Validation", "QA Team Approval", "Local Verification").
+- deployOrder must be an integer (1 to 10) representing the chronological execution and deploy sequence.
+- Generate 10-15 realistic, specific tasks — not vague placeholders.
+- Task descriptions must be detailed and actionable (2-3 sentences minimum).
+- Tasks must cover the full lifecycle: setup → core features → polish → deployment.
 `;
 
   let lastError = null;
@@ -581,15 +669,26 @@ Rules:
 
       if (!validTasks) throw new Error("One or more tasks are missing required fields or have invalid values");
 
-      // Ensure status is always "todo" regardless of what AI returned
-      parsed.tasks = parsed.tasks.map((t) => ({ ...t, status: "todo" }));
+      // Ensure status is always "todo" and defaults for dependencies/blockers are safe
+      parsed.tasks = parsed.tasks.map((t) => ({
+        ...t,
+        status: "todo",
+        dependencies: Array.isArray(t.dependencies) ? t.dependencies : [],
+        blockers: Array.isArray(t.blockers) ? t.blockers : [],
+        reviewStage: typeof t.reviewStage === "string" ? t.reviewStage : "PR Review",
+        deployOrder: typeof t.deployOrder === "number" ? t.deployOrder : 1,
+      }));
+
+      const decorated = decorateSprintWithDependencies({
+        projectType: parsed.projectType || "software project",
+        milestones: parsed.milestones,
+        tasks: parsed.tasks,
+      });
 
       return res.status(200).json({
         success: true,
         isFallback: false,
-        projectType: parsed.projectType || "software project",
-        milestones: parsed.milestones,
-        tasks: parsed.tasks,
+        ...decorated,
       });
     } catch (err) {
       lastError = err;
@@ -611,10 +710,11 @@ Rules:
   // All retries exhausted — return rich keyword fallback
   console.error("[Sprint] All retries failed, using keyword fallback. Last error:", lastError?.message);
   const fallback = buildFallbackSprint(prompt);
+  const decorated = decorateSprintWithDependencies(fallback);
   return res.status(200).json({
     success: true,
     isFallback: true,
     fallbackReason: lastError?.message || "AI provider unavailable",
-    ...fallback,
+    ...decorated,
   });
 };

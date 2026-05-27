@@ -69,6 +69,26 @@ const taskSchema = new mongoose.Schema(
       default: "",
     },
 
+    dependencies: {
+      type: [String],
+      default: [],
+    },
+
+    blockers: {
+      type: [String],
+      default: [],
+    },
+
+    reviewStage: {
+      type: String,
+      default: "",
+    },
+
+    deployOrder: {
+      type: Number,
+      default: 0,
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

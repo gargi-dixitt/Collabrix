@@ -474,12 +474,24 @@ const Project = () => {
                         </div>
                       )}
 
-                      {/* Milestone badge */}
-                      {task.milestone && (
-                        <div className="mb-2">
-                          <span className="text-[9px] bg-violet-950/30 text-violet-400 border border-violet-900/30 px-1.5 py-0.5 rounded font-mono">
-                            {task.milestone}
-                          </span>
+                      {/* Milestone, reviewStage, and deployOrder badges */}
+                      {(task.milestone || task.reviewStage || task.deployOrder) && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {task.milestone && (
+                            <span className="text-[9px] bg-violet-950/30 text-violet-400 border border-violet-900/30 px-1.5 py-0.5 rounded font-mono">
+                              {task.milestone}
+                            </span>
+                          )}
+                          {task.deployOrder > 0 && (
+                            <span className="text-[9px] bg-zinc-900 text-zinc-400 border border-zinc-800 px-1.5 py-0.5 rounded font-mono" title="Deploy sequence order">
+                              #{task.deployOrder}
+                            </span>
+                          )}
+                          {task.reviewStage && (
+                            <span className="text-[9px] bg-indigo-950/30 text-indigo-400 border border-indigo-900/30 px-1.5 py-0.5 rounded font-mono">
+                              🔍 {task.reviewStage.length > 15 ? task.reviewStage.slice(0, 15) + "…" : task.reviewStage}
+                            </span>
+                          )}
                         </div>
                       )}
 
@@ -491,6 +503,32 @@ const Project = () => {
                         <p className="text-zinc-500 text-xs mt-2 line-clamp-2 leading-relaxed">
                           {task.description}
                         </p>
+                      )}
+
+                      {/* Dependencies / Blockers */}
+                      {((task.dependencies && task.dependencies.length > 0) || (task.blockers && task.blockers.length > 0)) && (
+                        <div className="flex flex-col gap-1 mt-2.5 border-t border-zinc-950 pt-2 font-mono text-[9px] select-none">
+                          {task.blockers && task.blockers.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-red-400 font-extrabold text-[8px] tracking-wide uppercase">🚫 Blocked By:</span>
+                              {task.blockers.map((b, bi) => (
+                                <span key={bi} className="bg-red-950/20 text-red-400 border border-red-900/30 px-1.5 py-0.5 rounded" title={b}>
+                                  {b.length > 16 ? b.slice(0, 16) + "…" : b}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {task.dependencies && task.dependencies.length > 0 && !task.blockers?.includes(task.dependencies[0]) && (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-zinc-500 font-extrabold text-[8px] tracking-wide uppercase">⛓ Prereq:</span>
+                              {task.dependencies.map((d, di) => (
+                                <span key={di} className="bg-zinc-950 text-zinc-450 border border-zinc-900 px-1.5 py-0.5 rounded" title={d}>
+                                  {d.length > 16 ? d.slice(0, 16) + "…" : d}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Due Date & Checklist Indicators */}

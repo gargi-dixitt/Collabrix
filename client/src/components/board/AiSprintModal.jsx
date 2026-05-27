@@ -95,6 +95,10 @@ export default function AiSprintModal({ projectId, onClose, onSprintAccepted, ac
           labels: task.labels || [],
           milestone: task.milestone || "",
           suggestedOwner: task.suggestedOwner || "",
+          dependencies: task.dependencies || [],
+          blockers: task.blockers || [],
+          reviewStage: task.reviewStage || "",
+          deployOrder: task.deployOrder || 0,
           subtasks: (task.subtasks || []).map((s) =>
             typeof s === "string" ? { title: s, isCompleted: false } : s
           ),
@@ -438,8 +442,8 @@ function TaskPreviewCard({ task, rejected, onToggle }) {
     <div
       className={`border rounded-xl transition-all duration-200 ${
         rejected
-          ? "bg-zinc-950/30 border-zinc-900/60 opacity-50"
-          : "bg-zinc-900/40 border-zinc-800/60 hover:border-zinc-700"
+          ? "bg-zinc-950/30 border-zinc-900/60 opacity-50 font-sans"
+          : "bg-zinc-900/40 border-zinc-800/60 hover:border-zinc-700 font-sans"
       }`}
     >
       <div className="flex items-start gap-3 p-3.5">
@@ -460,8 +464,13 @@ function TaskPreviewCard({ task, rejected, onToggle }) {
               {task.title}
             </h5>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {task.deployOrder && (
+                <span className="text-[9px] bg-zinc-900 text-zinc-400 border border-zinc-800 px-1.5 py-0.5 rounded font-mono" title="Deploy sequence order">
+                  #{task.deployOrder}
+                </span>
+              )}
               {task.timeline && (
-                <span className="text-[9px] text-zinc-600 font-mono">{task.timeline}</span>
+                <span className="text-[9px] text-zinc-650 font-mono">{task.timeline}</span>
               )}
               <span
                 className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${
@@ -488,8 +497,13 @@ function TaskPreviewCard({ task, rejected, onToggle }) {
               </span>
             ))}
             {task.suggestedOwner && (
-              <span className="text-[9px] text-zinc-500 font-mono">
-                → {task.suggestedOwner}
+              <span className="text-[9px] text-zinc-400 font-mono bg-zinc-900/60 border border-zinc-850 px-1.5 py-0.5 rounded">
+                👤 {task.suggestedOwner}
+              </span>
+            )}
+            {task.reviewStage && (
+              <span className="text-[9px] bg-indigo-950/30 text-indigo-400 border border-indigo-900/30 px-1.5 py-0.5 rounded font-mono">
+                🔍 {task.reviewStage}
               </span>
             )}
           </div>
@@ -500,10 +514,36 @@ function TaskPreviewCard({ task, rejected, onToggle }) {
             </p>
           )}
 
+          {/* Dependencies / Blockers */}
+          {((task.dependencies && task.dependencies.length > 0) || (task.blockers && task.blockers.length > 0)) && (
+            <div className="flex flex-col gap-1.5 mt-2.5 border-t border-zinc-900/50 pt-2 font-mono text-[9px]">
+              {task.blockers && task.blockers.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-red-400/80 font-extrabold text-[8px] uppercase tracking-wider">🚫 Blocked By:</span>
+                  {task.blockers.map((b, bi) => (
+                    <span key={bi} className="bg-red-950/10 text-red-400 border border-red-950/20 px-1.5 py-0.5 rounded">
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {task.dependencies && task.dependencies.length > 0 && !task.blockers?.includes(task.dependencies[0]) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-zinc-550 font-extrabold text-[8px] uppercase tracking-wider">⛓ Prerequisites:</span>
+                  {task.dependencies.map((d, di) => (
+                    <span key={di} className="bg-zinc-900/60 text-zinc-450 border border-zinc-800/80 px-1.5 py-0.5 rounded">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {task.subtasks?.length > 0 && (
             <button
               onClick={() => setExpanded((e) => !e)}
-              className="text-[9px] text-zinc-600 hover:text-zinc-400 mt-1.5 transition font-mono"
+              className="text-[9px] text-zinc-600 hover:text-zinc-400 mt-2 transition font-mono"
             >
               {expanded ? "▾ Hide" : "▸ Show"} {task.subtasks.length} subtasks
             </button>
@@ -511,8 +551,8 @@ function TaskPreviewCard({ task, rejected, onToggle }) {
           {expanded && (
             <ul className="mt-2 flex flex-col gap-1 pl-2">
               {task.subtasks.map((s, si) => (
-                <li key={si} className="text-[9px] text-zinc-600 flex items-start gap-1.5">
-                  <span className="mt-0.5 flex-shrink-0">◦</span>
+                <li key={si} className="text-[9px] text-zinc-650 flex items-start gap-1.5">
+                  <span className="mt-0.5 flex-shrink-0 text-zinc-700">◦</span>
                   {typeof s === "string" ? s : s.title}
                 </li>
               ))}

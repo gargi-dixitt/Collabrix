@@ -4,7 +4,23 @@ import Comment from "../models/Comment.js";
 // Create a new task
 export const createTask = async (req, res, next) => {
   try {
-    const { title, description, project, workspace, priority, assignee, dueDate, labels } = req.body;
+    const {
+      title,
+      description,
+      project,
+      workspace,
+      priority,
+      assignee,
+      dueDate,
+      labels,
+      subtasks,
+      milestone,
+      suggestedOwner,
+      dependencies,
+      blockers,
+      reviewStage,
+      deployOrder,
+    } = req.body;
 
     if (!title?.trim() || !project) {
       return res.status(400).json({ success: false, message: "Title and project are required" });
@@ -19,6 +35,13 @@ export const createTask = async (req, res, next) => {
       assignee: assignee || null,
       dueDate: dueDate || null,
       labels: labels || [],
+      subtasks: subtasks || [],
+      milestone: milestone || "",
+      suggestedOwner: suggestedOwner || "",
+      dependencies: dependencies || [],
+      blockers: blockers || [],
+      reviewStage: reviewStage || "",
+      deployOrder: deployOrder || 0,
       createdBy: req.user._id,
     });
 
