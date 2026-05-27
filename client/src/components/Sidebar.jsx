@@ -8,12 +8,24 @@ const Sidebar = () => {
   const location = useLocation();
   const [user, setUser] = useState({});
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(null);
 
   useEffect(() => {
     try {
       setUser(JSON.parse(localStorage.getItem("user") || "{}"));
     } catch (_) {}
   }, []);
+
+  useEffect(() => {
+    const pathParts = location.pathname.split("/");
+    if (pathParts[1] === "workspace" && pathParts[2] && /^[a-f\d]{24}$/i.test(pathParts[2])) {
+      localStorage.setItem("activeWorkspaceId", pathParts[2]);
+      setActiveWorkspaceId(pathParts[2]);
+    } else {
+      const wsId = localStorage.getItem("activeWorkspaceId");
+      if (wsId) setActiveWorkspaceId(wsId);
+    }
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -80,6 +92,14 @@ const Sidebar = () => {
         {/* Nav */}
         <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto scrollbar-thin">
           <NavLink to="/dashboard" icon="📊" label="Dashboard" active={isActive("/dashboard")} />
+          {activeWorkspaceId && (
+            <NavLink
+              to={`/workspace/${activeWorkspaceId}/resources`}
+              icon="📚"
+              label="Resource Hub"
+              active={isActive(`/workspace/${activeWorkspaceId}/resources`)}
+            />
+          )}
         </nav>
 
         {/* Bottom user section */}

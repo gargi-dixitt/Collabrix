@@ -14,6 +14,7 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
   const [newComment, setNewComment] = useState("");
   const [savingComment, setSavingComment] = useState(false);
   const [projectTasks, setProjectTasks] = useState([]);
+  const [workspaceResources, setWorkspaceResources] = useState([]);
 
   // Edit states
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -86,12 +87,45 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
       // Fetch system users for assignee dropdown
       const usersRes = await api.get("/auth/users");
       setUsers(usersRes.data);
+
+      // Fetch workspace resources
+      const wsId = localStorage.getItem("activeWorkspaceId");
+      if (wsId) {
+        const resRes = await api.get(`/resources/workspace/${wsId}?limit=100`);
+        setWorkspaceResources(resRes.data.resources || []);
+      }
     } catch (err) {
       console.error("Failed to load task details:", err.message);
     } finally {
       setLoading(false);
     }
   }, [taskId, projectId]);
+
+  const handleAttachResource = async (resourceId) => {
+    try {
+      const res = await api.post(`/resources/${resourceId}/attach`, { taskId, action: "attach" });
+      fetchData();
+      socket.emit("task-updated", {
+        projectId,
+        message: `${user.name} linked reference resource "${res.data.title}" to task "${task.title}"`,
+      });
+    } catch (err) {
+      console.error("Failed to attach resource:", err.message);
+    }
+  };
+
+  const handleDetachResource = async (resourceId) => {
+    try {
+      const res = await api.post(`/resources/${resourceId}/attach`, { taskId, action: "detach" });
+      fetchData();
+      socket.emit("task-updated", {
+        projectId,
+        message: `${user.name} unlinked resource "${res.data.title}" from task "${task.title}"`,
+      });
+    } catch (err) {
+      console.error("Failed to detach resource:", err.message);
+    }
+  };
 
   const handleAddDependency = (title) => {
     if (!title || (task.dependencies || []).includes(title)) return;
@@ -469,6 +503,79 @@ export default function TaskModal({ taskId, projectId, onClose, onTaskUpdated })
                   className="bg-transparent border border-dashed border-zinc-850 focus:border-zinc-700 hover:border-zinc-750 text-zinc-400 text-xs px-3.5 py-2 rounded-xl outline-none transition placeholder-zinc-700 w-full"
                 />
               </div>
+            </div>
+
+            {/* Linked Resources Integration */}
+            <div className="border-t border-zinc-900 pt-6">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-zinc-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                  <span>📚</span> Linked Knowledge Resources ({ (task.resources || []).length })
+                </h4>
+              </div>
+
+              {/* Attached list */}
+              <div className="flex flex-col gap-2 mb-3">
+                {(task.resources || []).length === 0 ? (
+                  <p className="text-zinc-650 text-xs italic">No references linked yet. Attach doc/repo references below.</p>
+                ) : (
+                  (task.resources || []).map((res) => (
+                    <div
+                      key={res._id}
+                      className="flex items-center justify-between bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 rounded-xl px-3.5 py-2.5 transition group"
+                    >
+                      <a
+                        href={res.url || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 min-w-0 flex-1 hover:text-white transition"
+                      >
+                        {res.favicon ? (
+                          <img
+                            src={res.favicon}
+                            alt=""
+                            className="w-3.5 h-3.5 rounded-sm bg-zinc-950 flex-shrink-0"
+                            onError={(e) => { e.target.style.display = "none"; }}
+                          />
+                        ) : (
+                          <span>🔗</span>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-zinc-200 block truncate">{res.title}</span>
+                          <span className="text-[9px] text-zinc-550 font-mono block truncate capitalize">{res.type} · {res.domain || "Reference"}</span>
+                        </div>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDetachResource(res._id)}
+                        className="text-zinc-650 hover:text-red-400 transition text-[10px] px-2"
+                        title="Remove link"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Attach Selector */}
+              <select
+                value=""
+                onChange={(e) => {
+                  handleAttachResource(e.target.value);
+                  e.target.value = "";
+                }}
+                className="w-full bg-zinc-900/60 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs px-3.5 py-2.5 rounded-xl outline-none transition cursor-pointer font-sans"
+              >
+                <option value="" disabled>+ Link/Attach saved knowledge resource...</option>
+                {workspaceResources
+                  .filter((wr) => !(task.resources || []).some((tr) => tr._id === wr._id))
+                  .map((wr) => (
+                    <option key={wr._id} value={wr._id}>
+                      {wr.title} ({wr.category})
+                    </option>
+                  ))}
+              </select>
             </div>
 
             {/* Task Discussion / Comments */}

@@ -8,6 +8,7 @@ import Workspace from "./pages/Workspace";
 import Project from "./pages/Project";
 import NotFound from "./pages/NotFound";
 import JoinWorkspace from "./pages/JoinWorkspace";
+import ResourceHub from "./pages/ResourceHub";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -41,6 +42,15 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Workspace />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/workspace/:id/resources",
+    element: (
+      <ProtectedRoute>
+        <ResourceHub />
       </ProtectedRoute>
     ),
   },
