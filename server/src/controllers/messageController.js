@@ -2,7 +2,7 @@ import Message from "../models/Message.js";
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const { project, text } = req.body;
+    const { project, text, isSystem } = req.body;
 
     if (!project || !text?.trim()) {
       return res.status(400).json({ success: false, message: "Project and text are required" });
@@ -10,8 +10,9 @@ export const sendMessage = async (req, res, next) => {
 
     const message = await Message.create({
       project,
-      sender: req.user._id,
+      sender: isSystem ? null : req.user._id,
       text: text.trim(),
+      isSystem: !!isSystem,
       reactions: [],
     });
 

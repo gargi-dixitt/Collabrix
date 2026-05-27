@@ -244,6 +244,16 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
 
   return (
     <div className="flex flex-col h-full bg-zinc-950/80 border border-zinc-900 rounded-3xl overflow-hidden hover:border-zinc-800 transition">
+      <style>{`
+        @keyframes chatFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-chat-in {
+          animation: chatFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+      
       {/* Header */}
       <div className="px-5 py-4 border-b border-zinc-900 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -259,7 +269,7 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2.5 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 scrollbar-thin">
         {loadError ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
             <p className="text-zinc-600 text-xs">Couldn't load messages.</p>
@@ -287,13 +297,14 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
           // Group messages from same sender within 3 minutes
           const isGrouped =
             prevMsg &&
+            !prevMsg.isSystem &&
             (prevMsg.sender?._id || prevMsg.sender) === (msg.sender?._id || msg.sender) &&
             new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime() < 180000;
 
           if (msg.isSystem) {
             return (
-              <div key={msg._id} className="flex justify-center my-1.5 select-none">
-                <span className="text-[10px] text-zinc-500 bg-zinc-900/25 border border-zinc-900/50 rounded-full px-3 py-1 font-sans">
+              <div key={msg._id} className="flex justify-center my-1 select-none animate-chat-in">
+                <span className="text-[10px] text-zinc-500 bg-zinc-900/30 border border-zinc-900/60 rounded-full px-3 py-1 font-mono tracking-tight shadow-sm">
                   ⚡ {msg.text}
                 </span>
               </div>
@@ -303,35 +314,35 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
           return (
             <div
               key={msg._id}
-              className={`flex flex-col relative group ${isMe ? "items-end" : "items-start"} ${
-                isGrouped ? "-mt-1" : "mt-2.5"
+              className={`flex flex-col relative group animate-chat-in ${isMe ? "items-end" : "items-start"} ${
+                isGrouped ? "-mt-0.5" : "mt-2.5"
               }`}
             >
               {!isGrouped && (
-                <span className="text-zinc-500 text-[10px] mb-1 font-mono px-1">
+                <span className="text-zinc-550 text-[10px] mb-1 font-mono px-1">
                   {msg.sender?.name || "Unknown"} · {formatTime(msg.createdAt)}
                 </span>
               )}
               
               <div className={`flex items-center gap-2 max-w-[90%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                 <div
-                  className={`px-3.5 py-2 rounded-2xl text-xs break-words leading-relaxed ${
+                  className={`px-3 py-1.5 rounded-2xl text-xs break-words leading-relaxed ${
                     msg._failed
-                      ? "bg-red-950/40 text-red-400 border border-red-900/40"
+                      ? "bg-red-950/40 text-red-400 border border-red-900/40 font-medium"
                       : msg._temp
-                      ? "bg-zinc-800 text-zinc-400 border border-zinc-700 opacity-70"
+                      ? "bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60"
                       : isMe
                       ? `bg-white text-black font-semibold rounded-tr-sm shadow-sm ${
                           isGrouped ? "rounded-br-sm" : ""
                         }`
-                      : `bg-zinc-900 text-zinc-200 border border-zinc-850 rounded-tl-sm ${
+                      : `bg-zinc-900/90 text-zinc-200 border border-zinc-850 rounded-tl-sm shadow-sm ${
                           isGrouped ? "rounded-bl-sm" : ""
                         }`
                   }`}
                 >
                   {msg.text}
                   {msg._failed && (
-                    <span className="block text-[10px] mt-1 opacity-70">Failed to send</span>
+                    <span className="block text-[9px] mt-0.5 opacity-60">Failed to send</span>
                   )}
                 </div>
 
@@ -414,15 +425,15 @@ export default function ChatPanel({ projectId, parentTypingUsers = [] }) {
           );
         })}
 
-        {/* Typing indicator */}
+        {/* Typing indicator bubble */}
         {typingText && (
-          <div className="flex items-center gap-2 text-zinc-500 text-[11px] italic px-1">
-            <span className="flex gap-0.5">
-              <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:0ms]" />
-              <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:150ms]" />
-              <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:300ms]" />
+          <div className="flex items-center gap-2 mt-2 self-start bg-zinc-900 border border-zinc-850/60 rounded-2xl rounded-tl-sm px-4 py-2 text-zinc-400 text-[11px] font-sans shadow-sm animate-pulse">
+            <span className="flex items-center gap-0.5 mr-1">
+              <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:0ms]" />
+              <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
+              <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:300ms]" />
             </span>
-            {typingText}
+            <span>{typingText}</span>
           </div>
         )}
 

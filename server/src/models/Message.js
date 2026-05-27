@@ -11,13 +11,18 @@ const messageSchema = new mongoose.Schema(
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
 
     text: {
       type: String,
       required: true,
       trim: true,
+    },
+
+    isSystem: {
+      type: Boolean,
+      default: false,
     },
 
     reactions: [
